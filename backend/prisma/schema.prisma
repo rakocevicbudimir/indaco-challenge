@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,21 +11,168 @@ datasource db {
 }
 
 model User {
-  id            Int      @id @default(autoincrement())
-  email         String   @unique
-  passwordHash  String   @map("password_hash")
-  firstName     String?  @map("first_name")
-  lastName      String?  @map("last_name")
-  isActive      Boolean  @default(true) @map("is_active")
-  isPremium     Boolean  @default(false) @map("is_premium")
-  roles         Role[]   @default([USER])
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id            Int         @id @default(autoincrement()) @map("id")
+  email         String      @unique @map("email")
+  firstName     String?     @map("first_name")
+  lastName      String?     @map("last_name")
+  passwordHash  String      @map("password_hash")
+  roles         Role[]      @default([user]) @map("roles")
+  isPremium     Boolean     @map("is_premium")
+  blogs         Blog[]      @relation("BlogAuthor")
+  documents     Document[]  @relation("DocumentCreator")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  deletedAt     DateTime?   @map("deleted_at")
 
   @@map("leg_users")
 }
 
 enum Role {
- USER
- ADMIN
+  user
+  admin
+}
+
+model Meta {
+  id          Int         @id @default(autoincrement()) @map("id")
+  name        String      @map("name")
+  description String      @map("description")
+  slug        String      @map("slug")
+  type        MetaType    @map("type")
+  entityMeta  EntityMeta[] @relation("MetaToEntityMeta")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+
+  @@map("leg_metas")
+}
+
+enum MetaType {
+  tag
+  category
+}
+
+model Blog {
+  id          Int         @id @default(autoincrement()) @map("id")
+  title       String      @map("title")
+  summary     String      @map("summary")
+  content     String      @map("content")
+  status      Status      @map("status")
+  isPremium   Boolean     @map("is_premium")
+  authorId    Int         @map("author_id")
+  author      User        @relation("BlogAuthor", fields: [authorId], references: [id])
+  entityMeta  EntityMeta[] @relation("BlogToEntityMeta")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+
+  @@map("leg_blogs")
+}
+
+model Document {
+  id          Int         @id @default(autoincrement()) @map("id")
+  title       String      @map("title")
+  summary     String      @map("summary")
+  content     String      @map("content")
+  status      Status      @map("status")
+  isPublic    Boolean     @map("is_public")
+  creatorId   Int         @map("creator_id")
+  creator     User        @relation("DocumentCreator", fields: [creatorId], references: [id])
+  sections    Section[]
+  entityMeta  EntityMeta[] @relation("DocumentToEntityMeta")
+  notes       Note[]      @relation("DocumentToNotes")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+
+  @@map("leg_documents")
+}
+
+model Section {
+  id          Int         @id @default(autoincrement()) @map("id")
+  documentId  Int         @map("document_id")
+  document    Document    @relation(fields: [documentId], references: [id])
+  title       String      @map("title")
+  content     String      @map("content")
+  status      Status      @map("status")
+  isPublic    Boolean     @map("is_public")
+  version     String      @map("version")
+  parentId    Int?        @map("parent_id")
+  parent      Section?    @relation("SectionHierarchy", fields: [parentId], references: [id])
+  children    Section[]   @relation("SectionHierarchy")
+  entityMeta  EntityMeta[] @relation("SectionToEntityMeta")
+  notes       Note[]      @relation("SectionToNotes")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+
+  @@map("leg_sections")
+}
+
+model Note {
+  id          Int         @id @default(autoincrement()) @map("id")
+  title       String      @map("title")
+  content     String      @map("content")
+  entityType  NoteEntityType @map("entity_type")
+  entityId    Int         @map("entity_id")
+  document    Document?   @relation("DocumentToNotes", fields: [entityId], references: [id], map: "leg_notes_document_id_fkey")
+  section     Section?    @relation("SectionToNotes", fields: [entityId], references: [id], map: "leg_notes_section_id_fkey")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+
+  @@map("leg_notes")
+}
+
+model EntityMeta {
+  id          Int         @id @default(autoincrement()) @map("id")
+  entityType  EntityType  @map("entity_type")
+  entityId    Int         @map("entity_id")
+  content     String      @map("content")
+  blog        Blog?       @relation("BlogToEntityMeta", fields: [entityId], references: [id], map: "leg_entity_meta_blog_id_fkey")
+  document    Document?   @relation("DocumentToEntityMeta", fields: [entityId], references: [id], map: "leg_entity_meta_document_id_fkey") 
+  section     Section?    @relation("SectionToEntityMeta", fields: [entityId], references: [id], map: "leg_entity_meta_section_id_fkey")
+  meta        Meta        @relation("MetaToEntityMeta", fields: [metaId], references: [id])
+  metaId      Int         @map("meta_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+
+  @@map("leg_entity_meta")
+}
+
+model Reference {
+  id              Int         @id @default(autoincrement()) @map("id")
+  content         String      @map("content")
+  fromEntityId    Int         @map("from_entity_id")
+  fromEntityType  ReferenceEntityType @map("from_entity_type")
+  toEntityId      Int         @map("to_entity_id")
+  toEntityType    ReferenceEntityType @map("to_entity_type")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  deletedAt       DateTime?   @map("deleted_at")
+
+  @@map("leg_references")
+}
+
+enum Status {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum EntityType {
+  blog
+  document
+  section
+}
+
+enum NoteEntityType {
+  document
+  section
+}
+
+enum ReferenceEntityType {
+  blog
+  document
+  section
 }
