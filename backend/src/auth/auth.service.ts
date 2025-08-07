@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 import * as bcrypt from 'bcrypt';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -13,13 +14,15 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
-    
+
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
-        password: hashedPassword,
+        passwordHash: hashedPassword,
         firstName: dto.firstName,
         lastName: dto.lastName,
+        isPremium: false,
+        roles: [Role.user],
       },
     });
 
@@ -35,7 +38,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
