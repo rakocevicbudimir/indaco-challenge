@@ -1,1 +1,1 @@
-# indaco-challenge
+# legal-document-prototype
