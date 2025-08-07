@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:14-alpine3.15
+    ports:
+      - '${POSTGRES_DB_PORT}:5432'
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_DATABASE}
+      POSTGRES_USER: ${POSTGRES_DB_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_DB_PASS}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - legal
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  legal:
+    driver: bridge
