@@ -4,6 +4,8 @@ import {
   IsEnum,
   IsOptional,
   IsNotEmpty,
+  IsArray,
+  IsNumber,
 } from 'class-validator';
 import { Status } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
@@ -48,4 +50,15 @@ export class CreateDocumentDto {
     example: true,
   })
   isPublic?: boolean;
+
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  @ApiProperty({
+    description: 'Array of meta IDs to associate with the document',
+    example: [1, 2, 3],
+    type: [Number],
+    required: false,
+  })
+  metaIds?: number[];
 }
