@@ -127,7 +127,7 @@ model EntityMeta {
   id          Int         @id @default(autoincrement()) @map("id")
   entityType  EntityType  @map("entity_type")
   entityId    Int         @map("entity_id")
-  content     String      @map("content")
+  content     String?      @map("content")
   blog        Blog?       @relation("BlogToEntityMeta", fields: [entityId], references: [id], map: "leg_entity_meta_blog_id_fkey")
   document    Document?   @relation("DocumentToEntityMeta", fields: [entityId], references: [id], map: "leg_entity_meta_document_id_fkey") 
   section     Section?    @relation("SectionToEntityMeta", fields: [entityId], references: [id], map: "leg_entity_meta_section_id_fkey")
@@ -142,7 +142,7 @@ model EntityMeta {
 
 model Reference {
   id              Int         @id @default(autoincrement()) @map("id")
-  content         String      @map("content")
+  content         String?      @map("content")
   fromEntityId    Int         @map("from_entity_id")
   fromEntityType  ReferenceEntityType @map("from_entity_type")
   toEntityId      Int         @map("to_entity_id")
