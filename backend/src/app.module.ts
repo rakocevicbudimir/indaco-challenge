@@ -6,6 +6,7 @@ import { DocumentModule } from './document/document.module';
 import { BlogModule } from './blog/blog.module';
 import { NoteModule } from './note/note.module';
 import { ReferenceModule } from './reference/reference.module';
+import { MetaModule } from './meta/meta.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ReferenceModule } from './reference/reference.module';
     BlogModule,
     NoteModule,
     ReferenceModule,
+    MetaModule,
   ],
 })
 export class AppModule {}
