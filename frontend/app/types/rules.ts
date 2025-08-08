@@ -1,0 +1,90 @@
+import { z } from 'zod'
+
+// Common types
+export const TagSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).max(50),
+  slug: z.string().min(1).max(50),
+  type: z.enum(['category', 'tag']),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+})
+
+export const UserSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  name: z.string().min(2).max(100),
+  role: z.enum(['user', 'admin']),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+})
+
+// Legal Document types
+export const DocumentLineSchema = z.object({
+  id: z.string().uuid(),
+  content: z.string(),
+  lineNumber: z.number().int().positive(),
+  version: z.string(), // Git-like version hash
+  previousVersionId: z.string().uuid().optional(),
+  references: z.array(z.string().uuid()), // References to other documents/lines
+  createdAt: z.date(),
+  updatedAt: z.date(),
+})
+
+export const LegalDocumentSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1).max(200),
+  content: z.string(), // HTML or Markdown content
+  excerpt: z.string().max(500).optional(),
+  author: z.string().uuid(), // Reference to User
+  tags: z.array(z.string().uuid()), // References to Tags
+  isPublic: z.boolean(),
+  version: z.string(), // Document version
+  lines: z.array(DocumentLineSchema).optional(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+})
+
+// Blog types
+export const BlogArticleSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1).max(200),
+  content: z.string(), // HTML content
+  excerpt: z.string().max(500),
+  author: z.string().uuid(), // Reference to User
+  coverImage: z.string().url().optional(),
+  tags: z.array(z.string().uuid()), // References to Tags
+  isPremium: z.boolean(),
+  relatedDocuments: z.array(z.string().uuid()), // References to Legal Documents
+  createdAt: z.date(),
+  updatedAt: z.date(),
+})
+
+// Auth types
+export const LoginCredentialsSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+})
+
+export const RegisterCredentialsSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  name: z.string().min(2).max(100),
+})
+
+// Response types
+export const ApiResponseSchema = z.object({
+  success: z.boolean(),
+  data: z.unknown(),
+  error: z.string().optional(),
+})
+
+// Export types
+export type Tag = z.infer<typeof TagSchema>
+export type User = z.infer<typeof UserSchema>
+export type DocumentLine = z.infer<typeof DocumentLineSchema>
+export type LegalDocument = z.infer<typeof LegalDocumentSchema>
+export type BlogArticle = z.infer<typeof BlogArticleSchema>
+export type LoginCredentials = z.infer<typeof LoginCredentialsSchema>
+export type RegisterCredentials = z.infer<typeof RegisterCredentialsSchema>
+export type ApiResponse = z.infer<typeof ApiResponseSchema>

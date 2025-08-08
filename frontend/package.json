@@ -24,8 +24,10 @@
     "@tiptap/pm": "^3.0.9",
     "@tiptap/starter-kit": "^3.0.9",
     "@tiptap/vue-3": "^3.0.9",
+    "@types/dompurify": "^3.0.5",
     "@unhead/vue": "^2.0.14",
     "@vueuse/core": "^13.6.0",
+    "dompurify": "^3.2.6",
     "nuxt": "^4.0.1",
     "vue-novel": "^0.0.18"
   },
