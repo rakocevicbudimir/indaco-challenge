@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, ReferenceEntityType } from '@prisma/client';
 import { CreateReferenceDto } from './dto/create-reference.dto';
+import { CreateReferencesDto } from './dto/create-references.dto';
 import { UpdateReferenceDto } from './dto/update-reference.dto';
 import { FindReferencesDto } from './dto/find-references.dto';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
@@ -125,6 +126,95 @@ export class ReferenceService {
         toEntityId: dto.toEntityId,
       },
     });
+  }
+
+  async createMany(userId: number, dto: CreateReferencesDto) {
+    type ResultType = {
+      error: boolean;
+      data:
+        | CreateReferenceDto
+        | {
+            id: number;
+            content: string | null;
+            fromEntityType: ReferenceEntityType;
+            fromEntityId: number;
+            toEntityType: ReferenceEntityType;
+            toEntityId: number;
+            createdAt: Date;
+            updatedAt: Date;
+            deletedAt: Date | null;
+          };
+      message?: string;
+    };
+
+    const results: ResultType[] = [];
+
+    for (const referenceDto of dto.references) {
+      try {
+        // Check if user has access to both entities
+        const [fromAccess, toAccess] = await Promise.all([
+          this.checkEntityAccess(
+            referenceDto.fromEntityType,
+            referenceDto.fromEntityId,
+            userId,
+          ),
+          this.checkEntityAccess(
+            referenceDto.toEntityType,
+            referenceDto.toEntityId,
+            userId,
+          ),
+        ]);
+
+        if (!fromAccess.hasAccess || !toAccess.hasAccess) {
+          results.push({
+            error: true,
+            data: referenceDto,
+            message: 'You do not have access to one or both entities',
+          });
+          continue;
+        }
+
+        if (!fromAccess.isOwner) {
+          results.push({
+            error: true,
+            data: referenceDto,
+            message: 'You can only create references from your own entities',
+          });
+          continue;
+        }
+
+        // Create the reference
+        const reference = await this.prisma.reference.create({
+          data: {
+            content: referenceDto.content,
+            fromEntityType: referenceDto.fromEntityType,
+            fromEntityId: referenceDto.fromEntityId,
+            toEntityType: referenceDto.toEntityType,
+            toEntityId: referenceDto.toEntityId,
+          },
+        });
+
+        results.push({
+          error: false,
+          data: reference,
+        });
+      } catch (error) {
+        results.push({
+          error: true,
+          data: referenceDto,
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    return {
+      results,
+      summary: {
+        total: dto.references.length,
+        successful: results.filter((r) => !r.error).length,
+        failed: results.filter((r) => r.error).length,
+      },
+    };
   }
 
   async findAll(
