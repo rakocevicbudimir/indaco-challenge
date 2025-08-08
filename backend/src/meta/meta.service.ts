@@ -4,8 +4,9 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, MetaType } from '@prisma/client';
 import { CreateMetaDto } from './dto/create-meta.dto';
+import { CreateMetasDto } from './dto/create-metas.dto';
 import { UpdateMetaDto } from './dto/update-meta.dto';
 import { FindMetasDto } from './dto/find-metas.dto';
 import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
@@ -44,6 +45,73 @@ export class MetaService {
       }
       throw error;
     }
+  }
+
+  async createMany(dto: CreateMetasDto) {
+    const results: Array<{
+      id?: number;
+      name: string;
+      description?: string | null;
+      slug?: string | null;
+      type: MetaType;
+      createdAt?: Date;
+      updatedAt?: Date;
+      deletedAt?: Date | null;
+      error?: boolean;
+      message?: string;
+    }> = [];
+
+    for (const metaDto of dto.metas) {
+      const slug = metaDto.slug || this.generateSlug(metaDto.name);
+
+      try {
+        // First try to find an existing meta with the same name and type
+        const existingMeta = await this.prisma.meta.findFirst({
+          where: {
+            name: metaDto.name,
+            type: metaDto.type,
+            deletedAt: null,
+          },
+        });
+
+        if (existingMeta) {
+          // If found, return the existing meta
+          results.push(existingMeta);
+        } else {
+          // If not found, create a new one
+          const newMeta = await this.prisma.meta.create({
+            data: {
+              name: metaDto.name,
+              description: metaDto.description,
+              slug,
+              type: metaDto.type,
+            },
+          });
+          results.push(newMeta);
+        }
+      } catch (error) {
+        // Log the error but continue processing other metas
+        console.error(
+          `Error processing meta ${metaDto.name} of type ${metaDto.type}:`,
+          error,
+        );
+        results.push({
+          error: true,
+          name: metaDto.name,
+          type: metaDto.type,
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    return {
+      results,
+      summary: {
+        total: dto.metas.length,
+        successful: results.filter((r) => !r.error).length,
+        failed: results.filter((r) => r.error).length,
+      },
+    };
   }
 
   async findAll(query: FindMetasDto): Promise<PaginatedResponse<any>> {

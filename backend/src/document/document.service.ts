@@ -10,11 +10,28 @@ import { PaginatedResponse } from '../common/interfaces/paginated-response.inter
 export class DocumentService {
   constructor(private prisma: PrismaService) {}
 
-  create(userId: number, createDocumentDto: CreateDocumentDto) {
+  async create(userId: number, createDocumentDto: CreateDocumentDto) {
+    const { metaIds, ...documentData } = createDocumentDto;
+
     return this.prisma.document.create({
       data: {
-        ...createDocumentDto,
+        ...documentData,
         creatorId: userId,
+        entityMeta: metaIds?.length
+          ? {
+              create: metaIds.map((metaId) => ({
+                entityType: 'document',
+                metaId,
+              })),
+            }
+          : undefined,
+      },
+      include: {
+        entityMeta: {
+          include: {
+            meta: true,
+          },
+        },
       },
     });
   }

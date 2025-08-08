@@ -31,6 +31,15 @@ export class DocumentController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.USER, Role.ADMIN)
+  @ApiOperation({
+    summary: 'Create a new document',
+    description:
+      'Creates a new document with optional meta tags and categories',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'The document has been successfully created',
+  })
   create(
     @GetUser() user: JwtUser,
     @Body() createDocumentDto: CreateDocumentDto,
