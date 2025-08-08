@@ -13,6 +13,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ReferenceService } from './reference.service';
 import { CreateReferenceDto } from './dto/create-reference.dto';
+import { CreateReferencesDto } from './dto/create-references.dto';
 import { UpdateReferenceDto } from './dto/update-reference.dto';
 import { FindReferencesDto } from './dto/find-references.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -40,6 +41,25 @@ export class ReferenceController {
     @Body() createReferenceDto: CreateReferenceDto,
   ) {
     return this.referenceService.create(user.userId, createReferenceDto);
+  }
+
+  @Post('bulk')
+  @Roles(Role.USER, Role.ADMIN)
+  @ApiOperation({
+    summary: 'Create multiple references in one request',
+    description:
+      'Creates multiple references in one request. Each reference is validated independently, and the operation continues even if some references fail.',
+  })
+  @ApiResponse({
+    status: 201,
+    description:
+      'Returns an array of created references and errors, along with a summary of the operation.',
+  })
+  createMany(
+    @GetUser() user: JwtUser,
+    @Body() createReferencesDto: CreateReferencesDto,
+  ) {
+    return this.referenceService.createMany(user.userId, createReferencesDto);
   }
 
   @Get()
