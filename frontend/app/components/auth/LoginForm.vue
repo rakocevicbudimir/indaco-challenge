@@ -4,26 +4,28 @@
       <h2 class="text-2xl font-semibold text-center">Log In</h2>
     </template>
 
-    <form class="space-y-6" @submit.prevent="handleSubmit">
-      <UFormGroup label="Email">
+    <UForm :schema="LoginCredentialsSchema" :state="form" class="space-y-6" @submit="handleSubmit">
+      <UFormField label="Email" name="email">
         <UInput
           v-model="form.email"
           type="email"
           placeholder="Enter your email"
+          class="w-full"
           :disabled="loading"
           required
         />
-      </UFormGroup>
+      </UFormField>
 
-      <UFormGroup label="Password">
+      <UFormField label="Password" name="password">
         <UInput
           v-model="form.password"
           type="password"
           placeholder="Enter your password"
+          class="w-full"
           :disabled="loading"
           required
         />
-      </UFormGroup>
+      </UFormField>
 
       <UAlert
         v-if="error"
@@ -41,7 +43,7 @@
       >
         {{ loading ? 'Logging in...' : 'Log In' }}
       </UButton>
-    </form>
+    </UForm>
 
     <template #footer>
       <div class="flex flex-col gap-2 text-center">
@@ -57,23 +59,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
+import { LoginCredentialsSchema, type LoginCredentials } from '@/types/rules'
+import type { FormSubmitEvent } from '@nuxt/ui'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const { loading, error } = storeToRefs(authStore)
 
-const form = ref({
+const form = reactive<LoginCredentials>({
   email: '',
   password: '',
 })
 
-const handleSubmit = async () => {
+const handleSubmit = async (event: FormSubmitEvent<LoginCredentials>) => {
   try {
-    await authStore.login(form.value)
+    await authStore.login(event.data)
     router.push('/')
   } catch {
     // Error is handled by the store

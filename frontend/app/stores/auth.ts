@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
-import type { User, LoginCredentials, RegisterCredentials, ApiResponse } from '~/app/types/rules'
+import type { User, LoginCredentials, RegisterCredentials, ApiResponse } from '@/types/rules'
+
+const externalApiUrl = '/api1'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -12,7 +14,7 @@ export const useAuthStore = defineStore('auth', {
 
   getters: {
     isAuthenticated: (state) => !!state.token && !!state.user,
-    isAdmin: (state) => state.user?.role === 'admin',
+    isAdmin: (state) => state.user?.roles?.includes('admin'),
   },
 
   actions: {
@@ -21,7 +23,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
       
       try {
-        const response = await fetch('/api/auth/login', {
+        const response = await fetch(`${externalApiUrl}/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -31,16 +33,16 @@ export const useAuthStore = defineStore('auth', {
         
         const data = await response.json() as ApiResponse
         
-        if (!data.success) {
+        if (response.status !== 200) {
           throw new Error(data.error || 'Login failed')
         }
-        
-        const { user, token } = data.data as { user: User; token: string }
+
+        const { user, accessToken } = data.data as { user: User; accessToken: string }
         this.user = user
-        this.token = token
+        this.token = accessToken
         
         // Store token in localStorage
-        localStorage.setItem('auth_token', token)
+        localStorage.setItem('auth_token', accessToken)
       } catch (err) {
         this.error = err instanceof Error ? err.message : 'An error occurred'
         throw err
@@ -54,26 +56,26 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
       
       try {
-        const response = await fetch('/api/auth/register', {
+        const response = await fetch(`${externalApiUrl}/auth/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(credentials),
         })
-        
+
         const data = await response.json() as ApiResponse
         
-        if (!data.success) {
-          throw new Error(data.error || 'Registration failed')
+        if (response.status !== 201) {
+          throw new Error(response.statusText || 'Registration failed')
         }
         
-        const { user, token } = data.data as { user: User; token: string }
+        const { user, accessToken } = data.data as { user: User; accessToken: string }
         this.user = user
-        this.token = token
-        
+        this.token = accessToken
+
         // Store token in localStorage
-        localStorage.setItem('auth_token', token)
+        localStorage.setItem('auth_token', accessToken)
       } catch (err) {
         this.error = err instanceof Error ? err.message : 'An error occurred'
         throw err
@@ -96,7 +98,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
       
       try {
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch(`${externalApiUrl}/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -104,7 +106,7 @@ export const useAuthStore = defineStore('auth', {
         
         const data = await response.json() as ApiResponse
         
-        if (!data.success) {
+        if (response.status !== 200) {
           throw new Error(data.error || 'Authentication check failed')
         }
         
@@ -125,7 +127,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
       
       try {
-        const response = await fetch(`/api/users/${this.user.id}`, {
+        const response = await fetch(`${externalApiUrl}/users/${this.user.id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -156,7 +158,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
       
       try {
-        const response = await fetch(`/api/users/${this.user.id}`, {
+        const response = await fetch(`${externalApiUrl}/users/${this.user.id}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${this.token}`,
@@ -186,7 +188,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
       
       try {
-        const response = await fetch('/api/users', {
+        const response = await fetch(`${externalApiUrl}/users`, {
           headers: {
             'Authorization': `Bearer ${this.token}`,
           },
@@ -213,7 +215,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
       
       try {
-        const response = await fetch(`/api/users/${userId}`, {
+        const response = await fetch(`${externalApiUrl}/users/${userId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -249,7 +251,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
       
       try {
-        const response = await fetch(`/api/users/${userId}`, {
+        const response = await fetch(`${externalApiUrl}/users/${userId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${this.token}`,
