@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 // Common types
-export const TagSchema = z.object({
+export const MetaSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1).max(50),
   slug: z.string().min(1).max(50),
@@ -14,7 +14,7 @@ export const UserSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
   name: z.string().min(2).max(100),
-  role: z.enum(['user', 'admin']),
+  roles: z.array(z.enum(['user', 'admin'])),
   createdAt: z.date(),
   updatedAt: z.date(),
 })
@@ -40,6 +40,7 @@ export const LegalDocumentSchema = z.object({
   tags: z.array(z.string().uuid()), // References to Tags
   isPublic: z.boolean(),
   version: z.string(), // Document version
+  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
   lines: z.array(DocumentLineSchema).optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -47,17 +48,13 @@ export const LegalDocumentSchema = z.object({
 
 // Blog types
 export const BlogArticleSchema = z.object({
-  id: z.string().uuid(),
   title: z.string().min(1).max(200),
-  content: z.string(), // HTML content
-  excerpt: z.string().max(500),
-  author: z.string().uuid(), // Reference to User
-  coverImage: z.string().url().optional(),
-  tags: z.array(z.string().uuid()), // References to Tags
+  summary: z.string().max(500),
+  content: z.string(),
+  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']),
   isPremium: z.boolean(),
-  relatedDocuments: z.array(z.string().uuid()), // References to Legal Documents
-  createdAt: z.date(),
-  updatedAt: z.date(),
+  metaIds: z.array(z.number()),
+  coverImage: z.string().url().optional(),
 })
 
 // Auth types
@@ -67,9 +64,11 @@ export const LoginCredentialsSchema = z.object({
 })
 
 export const RegisterCredentialsSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(2).max(100),
+  firstName: z.string().min(2, 'First name must be at least 2 characters').max(100),
+  lastName: z.string().min(2, { message: 'Last name must be at least 2 characters' }).max(100),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
+  confirmPassword: z.string().min(8, { message: 'Password must be at least 8 characters' }),
 })
 
 // Response types
@@ -80,7 +79,7 @@ export const ApiResponseSchema = z.object({
 })
 
 // Export types
-export type Tag = z.infer<typeof TagSchema>
+export type Meta = z.infer<typeof MetaSchema>
 export type User = z.infer<typeof UserSchema>
 export type DocumentLine = z.infer<typeof DocumentLineSchema>
 export type LegalDocument = z.infer<typeof LegalDocumentSchema>

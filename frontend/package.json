@@ -28,10 +28,11 @@
     "@unhead/vue": "^2.0.14",
     "@vueuse/core": "^13.6.0",
     "dompurify": "^3.2.6",
-    "nuxt": "^4.0.1",
-    "vue-novel": "^0.0.18"
+    "novel-vue": "^0.0.4",
+    "nuxt": "^4.0.1"
   },
   "devDependencies": {
+    "@iconify-json/heroicons": "^1.2.2",
     "@nuxt/eslint": "^1.7.1",
     "eslint": "^9.32.0",
     "typescript": "^5.8.3"

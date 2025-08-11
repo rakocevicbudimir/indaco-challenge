@@ -11,10 +11,10 @@
       
       <div class="mt-4 flex flex-wrap gap-2">
         <UButton
-          v-for="tag in tags"
+          v-for="tag in availableTags"
           :key="tag.id"
-          :variant="selectedTags.includes(tag.id) ? 'solid' : 'outline'"
-          :color="selectedTags.includes(tag.id) ? 'primary' : 'gray'"
+          :variant="selectedTagId === tag.id ? 'solid' : 'outline'"
+          :color="selectedTagId === tag.id ? 'primary' : 'neutral'"
           size="sm"
           @click="toggleTag(tag.id)"
         >
@@ -25,36 +25,23 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <UCard
-        v-for="article in filteredArticles"
+        v-for="article in items"
         :key="article.id"
         class="group cursor-pointer"
         @click="navigateToArticle(article.id)"
       >
-        <template #header>
-          <div class="relative aspect-video overflow-hidden rounded-t-lg">
-            <img
-              v-if="article.coverImage"
-              :src="article.coverImage"
-              :alt="article.title"
-              class="w-full h-full object-cover transition group-hover:scale-105"
-            >
-            <UBadge
-              v-if="article.isPremium"
-              color="primary"
-              variant="solid"
-              class="absolute top-2 right-2"
-            >
-              Premium
-            </UBadge>
-          </div>
-        </template>
+        
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs text-gray-500">{{ formatDate(article.createdAt) }}</span>
+          <UBadge v-if="article.isPremium" color="primary" variant="solid">Premium</UBadge>
+        </div>
 
         <h2 class="text-xl font-semibold mb-2 group-hover:text-primary transition">
           {{ article.title }}
         </h2>
         
-        <p class="text-gray-600 dark:text-gray-400 line-clamp-3 mb-4">
-          {{ article.excerpt }}
+        <p v-if="article.summary" class="text-gray-600 dark:text-gray-400 line-clamp-3 mb-4">
+          {{ article.summary }}
         </p>
         
         <template #footer>
@@ -66,9 +53,9 @@
             
             <div class="flex flex-wrap gap-2">
               <UBadge
-                v-for="tagId in article.tags"
-                :key="tagId"
-                :label="getTagName(tagId)"
+                v-for="em in article.entityMeta"
+                :key="em.id"
+                :label="em.meta?.name"
                 variant="soft"
                 size="xs"
               />
@@ -79,10 +66,7 @@
     </div>
 
     <!-- Empty state -->
-    <div 
-      v-if="filteredArticles.length === 0"
-      class="text-center py-12"
-    >
+    <div v-if="!loading && items.length === 0" class="text-center py-12">
       <UIcon
         name="i-heroicons-document-text"
         class="h-12 w-12 mx-auto mb-4 text-gray-400"
@@ -94,69 +78,106 @@
         Try adjusting your search or filter criteria
       </p>
     </div>
+
+    <div v-if="loading" class="flex justify-center py-6">
+      <ULoader />
+    </div>
+
+    <div ref="loadMoreRef" class="h-1" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { storeToRefs } from 'pinia'
 import { useBlogStore } from '~/stores/blog'
-import type { Tag } from '@/types/rules'
 
 const router = useRouter()
 const blogStore = useBlogStore()
-const { articles, tags } = storeToRefs(blogStore)
 
 const searchQuery = ref('')
-const selectedTags = ref<string[]>([])
+const selectedTagId = ref<number | null>(null)
+const page = ref(1)
+const limit = ref(12)
+const hasNextPage = ref(true)
+const loading = ref(false)
+type ListArticle = { id: number; title: string; summary?: string; createdAt: string; isPremium: boolean; author?: { firstName?: string; lastName?: string }; entityMeta: Array<{ id: number; meta?: { id: number; name: string } }> }
+const items = ref<ListArticle[]>([])
+const loadMoreRef = ref<HTMLDivElement | null>(null)
+let observer: IntersectionObserver | null = null
 
-const filteredArticles = computed(() => {
-  let filtered = articles.value
-
-  // Filter by search query
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(article => 
-      article.title.toLowerCase().includes(query) ||
-      article.excerpt.toLowerCase().includes(query)
-    )
-  }
-
-  // Filter by selected tags
-  if (selectedTags.value.length > 0) {
-    filtered = filtered.filter(article =>
-      selectedTags.value.some(tagId => article.tags.includes(tagId))
-    )
-  }
-
-  return filtered
+const availableTags = computed(() => {
+  const set = new Map<number, { id: number; name: string }>()
+  items.value.forEach((a) => {
+    (a.entityMeta || []).forEach((em) => {
+      if (em?.meta?.id) set.set(em.meta.id, { id: em.meta.id, name: em.meta.name })
+    })
+  })
+  return Array.from(set.values())
 })
 
-const toggleTag = (tagId: string) => {
-  const index = selectedTags.value.indexOf(tagId)
-  if (index === -1) {
-    selectedTags.value.push(tagId)
-  } else {
-    selectedTags.value.splice(index, 1)
+function toggleTag(tagId: number) {
+  selectedTagId.value = selectedTagId.value === tagId ? null : tagId
+  resetAndFetch()
+}
+
+function getAuthorName(author?: { firstName?: string; lastName?: string } | number) {
+  if (author && typeof author === 'object') {
+    return `${author.firstName || ''} ${author.lastName || ''}`.trim() || 'Author'
   }
+  return 'Author'
 }
 
-const getTagName = (tagId: string) => {
-  const tag = tags.value.find((t: Tag) => t.id === tagId)
-  return tag?.name || ''
-}
-
-const getAuthorName = (authorId: string) => {
-  // This would typically come from a user store
-  return 'Author Name' // Placeholder
-}
-
-const formatDate = (date: Date) => {
+function formatDate(date: string) {
   return new Date(date).toLocaleDateString()
 }
 
-const navigateToArticle = (articleId: string) => {
+function navigateToArticle(articleId: number) {
   router.push(`/blog/${articleId}`)
 }
+
+async function fetchPage() {
+  if (loading.value || !hasNextPage.value) return
+  loading.value = true
+  try {
+    const res = await blogStore.fetchArticles(page.value, limit.value, searchQuery.value || undefined, undefined, selectedTagId.value)
+    const data = res as { items: ListArticle[]; meta: { hasNextPage: boolean; page: number } } | undefined
+    const newItems = (data?.items || [])
+    items.value.push(...newItems)
+    const meta = data?.meta as { hasNextPage: boolean; page: number } | undefined
+    hasNextPage.value = !!meta?.hasNextPage
+    page.value = ((meta?.page ?? page.value) + 1)
+  } finally {
+    loading.value = false
+  }
+}
+
+function resetAndFetch() {
+  items.value = []
+  page.value = 1
+  hasNextPage.value = true
+  fetchPage()
+}
+
+onMounted(() => {
+  resetAndFetch()
+  observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        fetchPage()
+      }
+    })
+  })
+  if (loadMoreRef.value) observer.observe(loadMoreRef.value)
+})
+
+onBeforeUnmount(() => {
+  if (observer && loadMoreRef.value) observer.unobserve(loadMoreRef.value)
+  observer = null
+})
+
+watch(searchQuery, () => {
+  // debounce could be added if needed
+  resetAndFetch()
+})
 </script>

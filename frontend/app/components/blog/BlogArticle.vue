@@ -1,9 +1,10 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-    <div v-if="article?.coverImage" class="w-full h-[400px] overflow-hidden">
+    <!-- Cover image optional: backend may not provide it -->
+    <div v-if="false" class="w-full h-[400px] overflow-hidden">
       <img 
-        :src="article.coverImage" 
-        :alt="article.title"
+        :src="''"
+        :alt="article?.title || ''"
         class="w-full h-full object-cover"
       >
     </div>
@@ -22,9 +23,9 @@
           
           <div class="flex flex-wrap gap-2 mt-4 sm:mt-0">
             <UBadge
-              v-for="tagId in article?.tags"
-              :key="tagId"
-              :label="getTagName(tagId)"
+              v-for="em in article?.entityMeta || []"
+              :key="em.id"
+              :label="em.meta?.name"
               variant="soft"
               class="text-sm"
             />
@@ -32,6 +33,8 @@
         </div>
       </header>
 
+      <!-- Premium content -->
+      <!-- TODO: This will be used for the premium content -->
       <div v-if="!isAuthenticated && article?.isPremium" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8 text-center">
         <UIcon
           name="i-heroicons-lock-closed"
@@ -62,20 +65,20 @@
         <aside class="space-y-8 lg:sticky lg:top-8">
           <UCard>
             <template #header>
-              <h3 class="text-lg font-semibold">Related Legal Documents</h3>
+              <h3 class="text-lg font-semibold">Linked Documents and Blogs</h3>
             </template>
-            <div class="space-y-4">
-              <div
-                v-for="docId in article?.relatedDocuments"
-                :key="docId"
-                class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition"
-                @click="navigateToDocument(docId)"
+            <div class="space-y-2 ">
+              <RouterLink
+                v-for="doc in article?.fromReferences"
+                :key="doc.id"
+                :to="navigateToDocument(doc)"
+                class="hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition"
               >
-                <h4 class="font-medium mb-2">{{ getDocumentTitle(docId) }}</h4>
+                <!-- <h4 class="font-medium mb-2">{{ doc.content }}</h4> -->
                 <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                  {{ getDocumentExcerpt(docId) }}
+                  {{ getDocumentTitle(doc) }}
                 </p>
-              </div>
+              </RouterLink>
             </div>
           </UCard>
 
@@ -88,22 +91,13 @@
                 v-for="relatedArticle in relatedArticles"
                 :key="relatedArticle.id"
                 class="group cursor-pointer"
-                @click="navigateToArticle(relatedArticle.id)"
+                @click="navigateToArticle(String(relatedArticle.id))"
               >
                 <div class="grid grid-cols-4 gap-4">
-                  <img
-                    v-if="relatedArticle.coverImage"
-                    :src="relatedArticle.coverImage"
-                    :alt="relatedArticle.title"
-                    class="col-span-1 aspect-square rounded-lg object-cover"
-                  >
                   <div class="col-span-3">
                     <h4 class="font-medium group-hover:text-primary transition">
                       {{ relatedArticle.title }}
                     </h4>
-                    <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                      {{ relatedArticle.excerpt }}
-                    </p>
                   </div>
                 </div>
               </div>
@@ -116,13 +110,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useBlogStore } from '~/stores/blog'
-import { useDocumentStore } from '~/stores/document'
 import { useAuthStore } from '~/stores/auth'
-import type { Tag } from '@/types/rules'
+import type { Author, EntityMeta, FullReference } from '~/types/common'
 
 const props = defineProps<{
   articleId: string
@@ -130,24 +123,44 @@ const props = defineProps<{
 
 const router = useRouter()
 const blogStore = useBlogStore()
-const documentStore = useDocumentStore()
 const authStore = useAuthStore()
 
-const { articles, tags } = storeToRefs(blogStore)
-const { documents } = storeToRefs(documentStore)
-const { isAuthenticated, user } = storeToRefs(authStore)
+const { articles } = storeToRefs(blogStore)
 
-const article = computed(() => 
-  articles.value.find(a => a.id === props.articleId)
-)
+type FullArticle = {
+  id: number
+  title: string
+  summary: string
+  content: string
+  status: string
+  isPremium: boolean
+  authorId: number
+  createdAt: string
+  updatedAt: string
+  deletedAt: string | null
+  author: Author
+  entityMeta: EntityMeta[]
+  toReferences: FullReference[]
+  fromReferences: FullReference[]
+}
 
-const authorName = computed(() => {
-  if (!article.value?.author) return ''
-  const author = user.value
-  return author?.name || ''
+const article = ref<FullArticle | null>(null)
+
+onMounted(async () => {
+  const res = await blogStore.fetchArticle(Number(props.articleId))
+  article.value = (res || null) as FullArticle | null
+  console.log(article.value?.fromReferences)
 })
 
-// Basic HTML sanitization - in production, use a proper sanitizer library
+const { isAuthenticated } = storeToRefs(authStore)
+
+const authorName = computed(() => {
+  const a = article.value?.author
+  if (!a) return ''
+  return `${a.firstName || ''} ${a.lastName || ''}`.trim()
+})
+
+// Basic HTML sanitization - we can update this to use a proper sanitizer library
 const safeContent = computed(() => {
   if (!article.value?.content) return ''
   return article.value.content
@@ -156,37 +169,28 @@ const safeContent = computed(() => {
     .replace(/javascript:/gi, '')
 })
 
-const relatedArticles = computed(() => {
+interface ListArticle { id: number; title: string; entityMeta?: Array<{ id: number; meta: { id: number } }> }
+
+const relatedArticles = computed<ListArticle[]>(() => {
   if (!article.value) return []
-  // Get articles that share tags with the current article
-  return articles.value.filter(a => 
-    a.id !== article.value!.id && // Exclude current article
-    a.tags.some((tag: string) => article.value!.tags.includes(tag))
-  ).slice(0, 3) // Limit to 3 related articles
+  const currentMetaIds = new Set((article.value.entityMeta || []).map((em: { meta?: { id: number } }) => em.meta?.id))
+  return (articles.value as unknown as ListArticle[])
+    .filter(a => a.id !== article.value!.id && (a.entityMeta || []).some((em) => currentMetaIds.has(em.meta?.id)))
+    .slice(0, 3)
 })
 
-const getTagName = (tagId: string) => {
-  const tag = tags.value.find((t: Tag) => t.id === tagId)
-  return tag?.name || ''
-}
-
-const formatDate = (date?: Date) => {
+const formatDate = (date?: string) => {
   if (!date) return ''
   return new Date(date).toLocaleDateString()
 }
 
-const getDocumentTitle = (docId: string) => {
-  const doc = documents.value.find(d => d.id === docId)
-  return doc?.title || ''
-}
-
-const getDocumentExcerpt = (docId: string) => {
-  const doc = documents.value.find(d => d.id === docId)
-  return doc?.excerpt || ''
-}
-
-const navigateToDocument = (docId: string) => {
-  router.push(`/documents/${docId}`)
+const navigateToDocument = (doc: FullReference) => {
+  if (doc.toEntityType === 'document') {
+    return `/documents/${doc.toEntityId}`
+  } else if (doc.toEntityType === 'blog') {
+    return `/blog/${doc.toEntityId}`
+  }
+  return '/'
 }
 
 const navigateToArticle = (articleId: string) => {
@@ -195,5 +199,14 @@ const navigateToArticle = (articleId: string) => {
 
 const navigateToLogin = () => {
   router.push('/auth/login')
+}
+
+const getDocumentTitle = (doc: FullReference) => {
+  if (doc.toEntityType === 'document') {
+    return doc.toDocument?.title || ''
+  } else if (doc.toEntityType === 'blog') {
+    return doc.toBlog?.title || ''
+  }
+  return ''
 }
 </script>

@@ -1,20 +1,31 @@
 import { defineStore } from 'pinia'
-import type { BlogArticle, Tag, ApiResponse } from '~/app/types/rules'
+import type { ApiResponse } from '@/types/rules'
+import type { Meta, EntityMeta } from '@/types/common'
+
+const externalApiUrl = '/api1'
+interface StoreBlogArticle {
+  id: number
+  title: string
+  isPremium: boolean
+  entityMeta: EntityMeta[]
+}
+
+type PaginatedArticles = { items: StoreBlogArticle[]; meta: { total: number; page: number; limit: number; totalPages: number; hasNextPage: boolean; hasPreviousPage: boolean } }
 
 export const useBlogStore = defineStore('blog', {
   state: () => ({
-    articles: [] as BlogArticle[],
-    tags: [] as Tag[],
+    articles: [] as StoreBlogArticle[],
+    tags: [] as Meta[],
     loading: false,
     error: null as string | null,
   }),
 
   getters: {
-    getArticleById: (state) => (id: string) =>
+    getArticleById: (state) => (id: number) =>
       state.articles.find(article => article.id === id),
 
-    getTagById: (state) => (id: string) =>
-      state.tags.find(tag => tag.id === id),
+    getTagById: (state) => (id: number) =>
+      state.tags.find(meta => meta.id === id),
 
     getPublicArticles: (state) =>
       state.articles.filter(article => !article.isPremium),
@@ -22,33 +33,47 @@ export const useBlogStore = defineStore('blog', {
     getPremiumArticles: (state) =>
       state.articles.filter(article => article.isPremium),
 
-    getRelatedArticles: (state) => (articleId: string) => {
+    getRelatedArticles: (state) => (articleId: number) => {
       const article = state.articles.find(a => a.id === articleId)
       if (!article) return []
 
       return state.articles
         .filter(a => 
-          a.id !== articleId && // Exclude current article
-          a.tags.some(tag => article.tags.includes(tag))
+          a.id !== articleId &&
+          a.entityMeta.some(em => article.entityMeta.map(aem => aem.meta.id).includes(em.meta.id))
         )
         .slice(0, 3) // Limit to 3 related articles
     },
   },
 
   actions: {
-    async fetchArticles() {
+    async fetchArticles(page: number, limit: number, search: string | undefined, status: string | undefined, tagId: number | null) {
       this.loading = true
       this.error = null
       
       try {
-        const response = await fetch('/api/blog/articles')
+        const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null
+        const params = new URLSearchParams()
+        params.set('page', String(page))
+        params.set('limit', String(limit))
+        if (search) params.set('search', search)
+        if (status) params.set('status', status)
+        if (tagId) params.set('metaIds', String(tagId))
+
+        const response = await fetch(`${externalApiUrl}/blogs?${params.toString()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
         const data = await response.json() as ApiResponse
         
-        if (!data.success) {
+        if (response.status !== 200) {
           throw new Error(data.error || 'Failed to fetch articles')
         }
         
-        this.articles = data.data as BlogArticle[]
+        const pageData = data.data as PaginatedArticles
+        this.articles = (pageData?.items || [])
+        return pageData
       } catch (err) {
         this.error = err instanceof Error ? err.message : 'An error occurred'
       } finally {
@@ -56,19 +81,25 @@ export const useBlogStore = defineStore('blog', {
       }
     },
 
-    async fetchTags() {
+    async fetchArticle(id: number) {
       this.loading = true
       this.error = null
       
       try {
-        const response = await fetch('/api/blog/tags')
+        const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null
+        const response = await fetch(`${externalApiUrl}/blogs/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
         const data = await response.json() as ApiResponse
-        
-        if (!data.success) {
-          throw new Error(data.error || 'Failed to fetch tags')
+
+        if (response.status !== 200) {
+          throw new Error(data.error || 'Failed to fetch article')
         }
-        
-        this.tags = data.data as Tag[]
+
+        const article = data.data as StoreBlogArticle
+        return article
       } catch (err) {
         this.error = err instanceof Error ? err.message : 'An error occurred'
       } finally {
@@ -76,26 +107,28 @@ export const useBlogStore = defineStore('blog', {
       }
     },
 
-    async createArticle(article: Omit<BlogArticle, 'id' | 'createdAt' | 'updatedAt'>) {
+    async createArticle(article: Partial<{ title: string; summary: string; content: string; status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'; isPremium: boolean; metaIds: number[]; coverImage?: string }>) {
       this.loading = true
       this.error = null
       
       try {
-        const response = await fetch('/api/blog/articles', {
+        const token = localStorage.getItem('auth_token')
+        const response = await fetch(`${externalApiUrl}/blogs`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify(article),
         })
         
         const data = await response.json() as ApiResponse
         
-        if (!data.success) {
+        if (response.status !== 201) {
           throw new Error(data.error || 'Failed to create article')
         }
         
-        const newArticle = data.data as BlogArticle
+        const newArticle = data.data as StoreBlogArticle
         this.articles.push(newArticle)
         
         return newArticle
@@ -107,15 +140,17 @@ export const useBlogStore = defineStore('blog', {
       }
     },
 
-    async updateArticle(id: string, updates: Partial<BlogArticle>) {
+    async updateArticle(id: number, updates: Partial<{ title: string; summary: string; content: string; status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'; isPremium: boolean; metaIds: number[]; coverImage?: string }>) {
       this.loading = true
       this.error = null
       
       try {
-        const response = await fetch(`/api/blog/articles/${id}`, {
+        const token = localStorage.getItem('auth_token')
+        const response = await fetch(`/api/blogs/${id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify(updates),
         })
@@ -126,7 +161,7 @@ export const useBlogStore = defineStore('blog', {
           throw new Error(data.error || 'Failed to update article')
         }
         
-        const updatedArticle = data.data as BlogArticle
+        const updatedArticle = data.data as StoreBlogArticle
         const index = this.articles.findIndex(article => article.id === id)
         
         if (index !== -1) {
@@ -142,13 +177,17 @@ export const useBlogStore = defineStore('blog', {
       }
     },
 
-    async deleteArticle(id: string) {
+    async deleteArticle(id: number) {
       this.loading = true
       this.error = null
       
       try {
-        const response = await fetch(`/api/blog/articles/${id}`, {
+        const token = localStorage.getItem('auth_token')
+        const response = await fetch(`${externalApiUrl}/blogs/${id}`, {
           method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
         })
         
         const data = await response.json() as ApiResponse
