@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 import * as bcrypt from 'bcrypt';
 import { Role } from '@prisma/client';
+import { JwtUser } from './types/jwt.types';
 
 @Injectable()
 export class AuthService {
@@ -26,7 +27,15 @@ export class AuthService {
       },
     });
 
-    return this.generateToken(user.id, user.email, user.roles);
+    const accessToken = this.generateToken(user.id, user.email, user.roles);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash, ...rest } = user;
+
+    return {
+      ...accessToken,
+      user: rest,
+    };
   }
 
   async login(dto: LoginDto) {
@@ -47,13 +56,36 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.generateToken(user.id, user.email, user.roles);
+    const accessToken = this.generateToken(user.id, user.email, user.roles);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash, ...rest } = user;
+
+    return {
+      ...accessToken,
+      user: rest,
+    };
   }
 
   private generateToken(userId: number, email: string, roles: Role[]) {
     const payload = { sub: userId, email, roles };
     return {
-      access_token: this.jwtService.sign(payload),
+      accessToken: this.jwtService.sign(payload),
     };
+  }
+
+  async me(user: JwtUser) {
+    const storedUser = await this.prisma.user.findUnique({
+      where: { id: user.userId },
+    });
+
+    if (!storedUser) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash, ...rest } = storedUser;
+
+    return rest;
   }
 }
