@@ -1,33 +1,69 @@
 <template>
   <div class="tiptap-editor">
-    <Editor :content="modelValue" @update:content="handleUpdate" />
+    <Editor
+      ref="editor"
+      :default-value="content"
+      :debounce-duration="2000"
+      :storage-key="`novel-vue-${1}`"
+      @debounced-update="handleUpdate"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import 'vue-novel/style.css'
-import { Editor } from 'vue-novel'
+// @ts-expect-error - novel-vue is not typed
+import { Editor } from 'novel-vue'
+import type { Editor as EditorType } from '@tiptap/core'
 
-defineProps<{
+
+import 'novel-vue/dist/style.css'
+
+const props = defineProps<{
   modelValue: string
   placeholder?: string
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
+console.log('props', props.modelValue)
+
+const editor = ref<EditorType | null>(null)
+
+const content = computed(() => {
+  return JSON.parse("{}");
+});
+
+const handleUpdate = (e: EditorType) => {
+  const content = e.getHTML()
+  emit('update:modelValue', content)
+}
 
 </script>
 
-<style>
+<style scoped>
 .tiptap-editor {
-  @apply border overflow-hidden;
+  @apply overflow-hidden;
+
+  color: #000;
+  border: none;
+
+  font-size: 1rem;
+}
+
+.ProseMirror {
+  color: #000;
+  a {
+    /* color: #000; */
+  }
+  h1, h2, h3, h4, h5, h6 {
+    color: #000;
+  }
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: #adb5bd;
   pointer-events: none;
   height: 0;
 }

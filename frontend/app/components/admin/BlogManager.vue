@@ -1,416 +1,342 @@
 <template>
-  <UCard>
-    <template #header>
-      <div class="flex justify-between items-center">
-        <h2 class="text-xl font-semibold">Manage Blog Articles</h2>
+  <div>
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-semibold">Blog Articles</h1>
+          <p class="mt-1 text-gray-600 dark:text-gray-400">
+            Manage your blog articles and content
+          </p>
+        </div>
         <UButton
-          color="primary"
           icon="i-heroicons-plus"
-          @click="showCreateModal = true"
+          to="/admin/blog/create"
+          color="primary"
         >
-          Create New Article
-        </UButton>
-      </div>
-    </template>
-
-    <div class="space-y-4">
-      <UInput
-        v-model="searchQuery"
-        icon="i-heroicons-magnifying-glass"
-        placeholder="Search articles..."
-        size="lg"
-      />
-      
-      <div class="flex flex-wrap gap-2">
-        <UButton
-          v-for="tag in tags"
-          :key="tag.id"
-          :variant="selectedTags.includes(tag.id) ? 'solid' : 'outline'"
-          :color="selectedTags.includes(tag.id) ? 'primary' : 'gray'"
-          size="sm"
-          @click="toggleTag(tag.id)"
-        >
-          {{ tag.name }}
+          New Article
         </UButton>
       </div>
     </div>
 
-    <UTable
-      :rows="filteredArticles"
-      :columns="[
-        {
-          key: 'title',
-          label: 'Title',
-          id: 'title'
-        },
-        {
-          key: 'author',
-          label: 'Author',
-          id: 'author'
-        },
-        {
-          key: 'status',
-          label: 'Status',
-          id: 'status'
-        },
-        {
-          key: 'createdAt',
-          label: 'Created',
-          id: 'createdAt'
-        },
-        {
-          key: 'actions',
-          label: 'Actions',
-          id: 'actions'
-        }
-      ]"
-    >
-      <template #author-data="{ row }">
-        {{ getAuthorName(row.author) }}
-      </template>
+    <!-- Filters -->
+    <UCard class="mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <UInput
+          v-model="filters.search"
+          icon="i-heroicons-magnifying-glass"
+          placeholder="Search articles..."
+        />
+        <USelect
+          v-model="filters.status"
+          :options="['ALL', 'DRAFT', 'PUBLISHED']"
+          placeholder="Filter by status"
+          option-attribute="label"
+        />
+        <USelectMenu
+          v-model="filters.tagId"
+          :options="tagOptions"
+          placeholder="Filter by tag"
+        />
+      </div>
+    </UCard>
 
-      <template #status-data="{ row }">
-        <UBadge
-          :color="row.isPremium ? 'primary' : 'gray'"
-          :variant="row.isPremium ? 'solid' : 'subtle'"
-        >
-          {{ row.isPremium ? 'Premium' : 'Free' }}
-        </UBadge>
-      </template>
-
-      <template #createdAt-data="{ row }">
-        {{ formatDate(row.createdAt) }}
-      </template>
-
-      <template #actions-data="{ row }">
-        <div class="flex gap-2">
-          <UButton
-            color="primary"
-            variant="ghost"
-            icon="i-heroicons-pencil-square"
-            @click="editArticle(row)"
-          >
-            Edit
-          </UButton>
-          <UButton
-            color="red"
-            variant="ghost"
-            icon="i-heroicons-trash"
-            @click="confirmDelete(row)"
-          >
-            Delete
-          </UButton>
-        </div>
-      </template>
-    </UTable>
-
-    <!-- Create/Edit Modal -->
-    <UModal
-      v-model="showModal"
-      :ui="{ width: 'max-w-3xl' }"
-    >
-      <UCard>
-        <template #header>
-          <h3 class="text-xl font-semibold">
-            {{ editingArticle ? 'Edit Article' : 'Create New Article' }}
-          </h3>
-        </template>
-
-        <div class="space-y-6">
-          <UFormGroup label="Title">
-            <UInput
-              v-model="articleForm.title"
-              placeholder="Enter article title"
-              required
-            />
-          </UFormGroup>
-
-          <UFormGroup label="Excerpt">
-            <UTextarea
-              v-model="articleForm.excerpt"
-              placeholder="Enter article excerpt"
-              rows="3"
-              required
-            />
-          </UFormGroup>
-
-          <UFormGroup label="Content">
-            <TiptapEditor
-              v-model="articleForm.content"
-              placeholder="Write your article..."
-            />
-          </UFormGroup>
-
-          <UFormGroup label="Cover Image URL">
-            <UInput
-              v-model="articleForm.coverImage"
-              type="url"
-              placeholder="Enter cover image URL"
-            />
-          </UFormGroup>
-
-          <UFormGroup label="Tags">
-            <div class="flex flex-wrap gap-2">
-              <UButton
-                v-for="tag in tags"
-                :key="tag.id"
-                :variant="articleForm.tags.includes(tag.id) ? 'solid' : 'outline'"
-                :color="articleForm.tags.includes(tag.id) ? 'primary' : 'gray'"
-                size="sm"
-                @click="toggleArticleTag(tag.id)"
-              >
-                {{ tag.name }}
-              </UButton>
-            </div>
-          </UFormGroup>
-
-          <UFormGroup label="Related Documents">
-            <UCard class="max-h-48 overflow-y-auto">
-              <div class="space-y-2">
-                <div
-                  v-for="doc in documents"
-                  :key="doc.id"
-                  class="p-2 rounded cursor-pointer transition"
-                  :class="[
-                    articleForm.relatedDocuments.includes(doc.id)
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'hover:bg-gray-50'
-                  ]"
-                  @click="toggleRelatedDocument(doc.id)"
-                >
-                  {{ doc.title }}
-                </div>
-              </div>
-            </UCard>
-          </UFormGroup>
-
-          <UFormGroup>
-            <UCheckbox
-              v-model="articleForm.isPremium"
-              label="Make article premium content"
-            />
-          </UFormGroup>
-        </div>
-
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="gray"
-              variant="soft"
-              @click="closeModal"
-            >
-              Cancel
-            </UButton>
-            <UButton
-              color="primary"
-              @click="saveArticle"
-            >
-              {{ editingArticle ? 'Save Changes' : 'Create Article' }}
-            </UButton>
+    <!-- Articles Table -->
+    <UCard>
+      <UTable
+        :data="tableRows"
+        :columns="columns"
+        :loading="loading"
+        :empty-state="{
+          icon: 'i-heroicons-newspaper',
+          label: 'No articles found',
+          description: loading ? 'Loading articles...' : 'Try adjusting your filters or create a new article'
+        }"
+      >
+        <template #title-cell="{ row }">
+          <div class="flex items-center gap-2">
+            <UIcon :name="asItem(row).isPremium ? 'i-heroicons-star' : 'i-heroicons-newspaper'" class="text-gray-400" />
+            <NuxtLink :to="`/blog/${asItem(row).id}`" class="font-medium text-primary hover:underline">
+              {{ asItem(row).title }}
+            </NuxtLink>
           </div>
         </template>
-      </UCard>
-    </UModal>
+
+        <template #premium-cell="{ row }">
+          <UBadge :color="asItem(row).isPremium ? 'warning' : 'neutral'" :variant="asItem(row).isPremium ? 'solid' : 'subtle'">
+            {{ asItem(row).isPremium ? 'Premium' : 'Free' }}
+          </UBadge>
+        </template>
+
+        <template #tags-cell="{ row }">
+          <div class="flex flex-wrap gap-1">
+            <UBadge
+              v-for="em in asItem(row).entityMeta"
+              :key="em.id"
+              :label="em.meta.name"
+              color="primary"
+              variant="soft"
+              size="xs"
+            />
+          </div>
+        </template>
+
+        <template #date-cell="{ row }">
+          <span class="text-gray-600 dark:text-gray-400">{{ formatDate(asItem(row).createdAt) }}</span>
+        </template>
+
+        <template #actions-cell="{ row }">
+          <UDropdownMenu :items="getActionItems(asItem(row))">
+            <UButton color="neutral" variant="ghost" icon="i-heroicons-ellipsis-vertical" />
+          </UDropdownMenu>
+        </template>
+      </UTable>
+
+      <!-- Pagination -->
+      <template #footer>
+        <div class="flex items-center justify-between gap-2 mt-4">
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Showing {{ articles.items.length }} of {{ articles.meta.total }} articles
+          </p>
+          <UPagination
+            v-model="currentPage"
+            :total="articles.meta.total"
+            :page-size="articles.meta.limit"
+          />
+        </div>
+      </template>
+    </UCard>
 
     <!-- Delete Confirmation Modal -->
-    <UModal v-model="showDeleteModal">
-      <UCard>
-        <template #header>
-          <h3 class="text-xl font-semibold">Delete Article</h3>
-        </template>
-
-        <p class="text-gray-600">
-          Are you sure you want to delete "{{ articleToDelete?.title }}"? This action cannot be undone.
-        </p>
-
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="gray"
-              variant="soft"
-              @click="showDeleteModal = false"
-            >
-              Cancel
-            </UButton>
-            <UButton
-              color="red"
-              @click="deleteArticle"
-            >
-              Delete
-            </UButton>
-          </div>
-        </template>
-      </UCard>
+    <UModal v-model:open="showDeleteModal">
+      <template #content>
+        <UCard>
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon name="i-heroicons-exclamation-triangle" class="text-red-500" />
+              <h3 class="text-lg font-semibold">Delete Article</h3>
+            </div>
+          </template>
+  
+          <p>Are you sure you want to delete "{{ articleToDelete?.title }}"? This action cannot be undone.</p>
+  
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton
+                color="neutral"
+                variant="soft"
+                @click="showDeleteModal = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                color="error"
+                @click="deleteArticle"
+              >
+                Delete
+              </UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
     </UModal>
-  </UCard>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useBlogStore } from '~/stores/blog'
-import { useDocumentStore } from '~/stores/document'
-import { useAuthStore } from '~/stores/auth'
-import type { BlogArticle } from '@/types/rules'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useBlogStore } from '@/stores/blog'
 
 const blogStore = useBlogStore()
-const documentStore = useDocumentStore()
-const authStore = useAuthStore()
 
-const { articles, tags } = storeToRefs(blogStore)
-const { documents } = storeToRefs(documentStore)
-const { user } = storeToRefs(authStore)
+interface Author {
+  id: number
+  email: string
+  firstName: string
+  lastName: string
+}
 
-const searchQuery = ref('')
-const selectedTags = ref<string[]>([])
-const showCreateModal = ref(false)
+interface Meta {
+  id: number
+  name: string
+  description: string | null
+  slug: string
+  type: string
+}
+
+interface EntityMeta {
+  id: number
+  meta: Meta
+}
+
+interface Reference {
+  id: number
+  content: string
+  fromEntityType: string
+  toEntityType: string
+}
+
+interface BlogArticle {
+  id: number
+  title: string
+  summary: string
+  content: string
+  status: string
+  isPremium: boolean
+  authorId: number
+  createdAt: string
+  updatedAt: string
+  author: Author
+  entityMeta: EntityMeta[]
+  fromReferences: Reference[]
+  toReferences: Reference[]
+}
+
+interface PaginationMeta {
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+}
+
+interface ArticlesResponse {
+  items: BlogArticle[]
+  meta: PaginationMeta
+}
+
+// State
+const currentPage = ref(1)
 const showDeleteModal = ref(false)
-const editingArticle = ref<BlogArticle | null>(null)
 const articleToDelete = ref<BlogArticle | null>(null)
 
-const showModal = computed({
-  get: () => showCreateModal.value || !!editingArticle.value,
-  set: (value: boolean) => {
-    if (!value) {
-      showCreateModal.value = false
-      editingArticle.value = null
+const filters = ref({
+  search: '',
+  status: '',
+  tagId: null as number | null
+})
+
+const articles = ref<ArticlesResponse>({
+  items: [],
+  meta: {
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false
+  }
+})
+
+// Available tags for filter
+const availableTags = computed(() => {
+  const tags = new Map<number, Meta>()
+  articles.value.items.forEach(article => {
+    article.entityMeta.forEach(em => {
+      tags.set(em.meta.id, em.meta)
+    })
+  })
+  return Array.from(tags.values())
+})
+
+const tagOptions = computed(() => availableTags.value.map(t => ({ label: t.name, value: t.id })))
+
+const columns = [
+  { id: 'title', header: 'Title' },
+  { id: 'premium', header: 'Type' },
+  { id: 'tags', header: 'Tags' },
+  { id: 'date', header: 'Created' },
+  { id: 'actions', header: '' },
+]
+
+// Utilities
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString()
+}
+
+const loading = ref(false)
+const tableRows = computed(() => articles.value.items)
+
+async function fetchArticles(page: number, limit: number, search: string | undefined, status: string | undefined, tagId: number | null) {
+  loading.value = true
+  try {
+    const res = await blogStore.fetchArticles(page, limit, search, status, tagId)
+    if (res) {
+      articles.value = res as unknown as ArticlesResponse
     }
+  } catch (e) {
+    console.error('Failed to fetch articles:', e)
+  } finally {
+    loading.value = false
   }
+}
+
+onMounted(async () => {
+  await fetchArticles(currentPage.value, articles.value.meta.limit, filters.value.search, filters.value.status, filters.value.tagId)
 })
 
-const articleForm = ref({
-  title: '',
-  content: '',
-  excerpt: '',
-  coverImage: '',
-  tags: [] as string[],
-  relatedDocuments: [] as string[],
-  isPremium: false,
-})
+const getActionItems = (article: BlogArticle) => [
+  [
+    {
+      label: 'View',
+      icon: 'i-heroicons-eye',
+      to: `/blog/${article.id}`
+    },
+    { label: 'Edit', icon: 'i-heroicons-pencil-square', to: `/admin/blog/${article.id}/edit` }
+  ],
+  [
+    article.status !== 'PUBLISHED' && {
+      label: 'Publish',
+      icon: 'i-heroicons-arrow-up-on-square',
+      click: () => publishArticle(article.id)
+    }
+  ].filter(Boolean),
+  [
+    {
+      label: 'Delete',
+      icon: 'i-heroicons-trash',
+      click: () => confirmDelete(article)
+    }
+  ]
+]
 
-const filteredArticles = computed(() => {
-  let filtered = articles.value
-
-  // Filter by search query
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(article =>
-      article.title.toLowerCase().includes(query) ||
-      article.excerpt.toLowerCase().includes(query)
-    )
-  }
-
-  // Filter by selected tags
-  if (selectedTags.value.length > 0) {
-    filtered = filtered.filter(article =>
-      selectedTags.value.some(tagId => article.tags.includes(tagId))
-    )
-  }
-
-  return filtered
-})
-
-const toggleTag = (tagId: string) => {
-  const index = selectedTags.value.indexOf(tagId)
-  if (index === -1) {
-    selectedTags.value.push(tagId)
-  } else {
-    selectedTags.value.splice(index, 1)
-  }
+function asItem(row: unknown): BlogArticle {
+  const possibleRow = row as { original?: BlogArticle }
+  return possibleRow.original ?? (row as BlogArticle)
 }
 
-const toggleArticleTag = (tagId: string) => {
-  const index = articleForm.value.tags.indexOf(tagId)
-  if (index === -1) {
-    articleForm.value.tags.push(tagId)
-  } else {
-    articleForm.value.tags.splice(index, 1)
-  }
-}
-
-const toggleRelatedDocument = (docId: string) => {
-  const index = articleForm.value.relatedDocuments.indexOf(docId)
-  if (index === -1) {
-    articleForm.value.relatedDocuments.push(docId)
-  } else {
-    articleForm.value.relatedDocuments.splice(index, 1)
-  }
-}
-
-const getAuthorName = (authorId: string) => {
-  if (authorId === user.value?.id) {
-    return user.value.name
-  }
-  return 'Unknown Author' // In a real app, you'd fetch the author name
-}
-
-const formatDate = (date: Date) => {
-  return new Date(date).toLocaleDateString()
-}
-
-const editArticle = (article: BlogArticle) => {
-  editingArticle.value = article
-  articleForm.value = {
-    title: article.title,
-    content: article.content,
-    excerpt: article.excerpt,
-    coverImage: article.coverImage || '',
-    tags: [...article.tags],
-    relatedDocuments: [...article.relatedDocuments],
-    isPremium: article.isPremium,
-  }
-}
-
+// Actions
 const confirmDelete = (article: BlogArticle) => {
   articleToDelete.value = article
   showDeleteModal.value = true
 }
 
-const closeModal = () => {
-  showCreateModal.value = false
-  editingArticle.value = null
-  articleForm.value = {
-    title: '',
-    content: '',
-    excerpt: '',
-    coverImage: '',
-    tags: [],
-    relatedDocuments: [],
-    isPremium: false,
-  }
-}
-
-const saveArticle = async () => {
-  try {
-    if (editingArticle.value) {
-      await blogStore.updateArticle(editingArticle.value.id, {
-        ...articleForm.value,
-        author: user.value!.id,
-      })
-    } else {
-      await blogStore.createArticle({
-        ...articleForm.value,
-        author: user.value!.id,
-      })
-    }
-    closeModal()
-  } catch (error) {
-    console.error('Failed to save article:', error)
-    // Handle error (show notification, etc.)
-  }
-}
-
 const deleteArticle = async () => {
   if (!articleToDelete.value) return
-
+  
   try {
-    await blogStore.deleteArticle(articleToDelete.value.id)
+    // Add delete API call here
     showDeleteModal.value = false
     articleToDelete.value = null
+    // Refresh articles list
   } catch (error) {
     console.error('Failed to delete article:', error)
-    // Handle error (show notification, etc.)
   }
 }
-</script>
 
+const publishArticle = async (_articleId: number) => {
+  try {
+    // Add publish API call here
+    // Refresh articles list
+  } catch (error) {
+    console.error('Failed to publish article:', error)
+  }
+}
+
+// Watch filters and pagination to refetch data
+watch([currentPage, filters], () => {
+  fetchArticles(currentPage.value, articles.value.meta.limit, filters.value.search, filters.value.status, filters.value.tagId)
+}, { deep: true })
+</script>
