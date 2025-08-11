@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Query,
+  HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { DocumentService } from './document.service';
@@ -48,6 +49,7 @@ export class DocumentController {
   }
 
   @Get()
+  @HttpCode(200)
   @UseGuards(ConditionalAuthGuard)
   @PublicOrAuth()
   @ApiOperation({
@@ -62,6 +64,7 @@ export class DocumentController {
   }
 
   @Get(':id')
+  @HttpCode(200)
   @UseGuards(ConditionalAuthGuard)
   @PublicOrAuth()
   findOne(@GetUser() user: JwtUser | null, @Param('id') id: string) {

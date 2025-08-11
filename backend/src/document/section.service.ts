@@ -172,7 +172,7 @@ export class SectionService {
       // Delete existing meta relationships
       await this.prisma.entityMeta.deleteMany({
         where: {
-          entityId: id,
+          sectionId: id,
           entityType: EntityType.section,
         },
       });
@@ -181,7 +181,7 @@ export class SectionService {
       await this.prisma.entityMeta.createMany({
         data: dto.metaIds.map((metaId) => ({
           metaId,
-          entityId: id,
+          sectionId: id,
           entityType: EntityType.section,
           content: '',
         })),

@@ -6,7 +6,10 @@ import {
   IsNotEmpty,
   IsArray,
   IsNumber,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { CreateNestedSectionDto } from './create-nested-section.dto';
 import { Status } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -61,4 +64,15 @@ export class CreateDocumentDto {
     required: false,
   })
   metaIds?: number[];
+
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => CreateNestedSectionDto)
+  @ApiProperty({
+    description: 'Array of sections to create with the document',
+    type: [CreateNestedSectionDto],
+    required: false,
+  })
+  sections?: CreateNestedSectionDto[];
 }
