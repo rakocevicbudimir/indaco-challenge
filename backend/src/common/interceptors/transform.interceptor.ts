@@ -38,7 +38,8 @@ export class TransformInterceptor<T>
               message: response.message || error.message,
               data: null,
               error: {
-                code: response.code || this.getCodeFromStatus(error.getStatus()),
+                code:
+                  response.code || this.getCodeFromStatus(error.getStatus()),
                 details: response.details || error.message,
               },
             },

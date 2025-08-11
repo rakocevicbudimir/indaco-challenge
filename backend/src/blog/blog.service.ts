@@ -16,7 +16,7 @@ export class BlogService {
       ?.map((id) => (typeof id === 'string' ? parseInt(id, 10) : id))
       .filter((id) => !isNaN(id));
 
-    return this.prisma.blog.create({
+    const blog = await this.prisma.blog.create({
       data: {
         title: dto.title,
         summary: dto.summary,
@@ -52,6 +52,29 @@ export class BlogService {
         },
       },
     });
+
+    // Create outgoing references from this blog if provided
+    if (dto.toReferences?.length) {
+      await Promise.all(
+        dto.toReferences.map((ref) =>
+          this.prisma.reference.create({
+            data: {
+              content: ref.content,
+              fromEntityType: 'blog',
+              toEntityType: ref.toEntityType,
+              fromBlog: { connect: { id: blog.id } },
+              ...(ref.toEntityType === 'blog'
+                ? { toBlog: { connect: { id: ref.toEntityId } } }
+                : ref.toEntityType === 'document'
+                  ? { toDocument: { connect: { id: ref.toEntityId } } }
+                  : { toSection: { connect: { id: ref.toEntityId } } }),
+            },
+          }),
+        ),
+      );
+    }
+
+    return blog;
   }
 
   async findAll(
@@ -130,6 +153,20 @@ export class BlogService {
             meta: true,
           },
         },
+        toReferences: {
+          include: {
+            toBlog: true,
+            toDocument: true,
+            toSection: true,
+          },
+        },
+        fromReferences: {
+          include: {
+            fromBlog: true,
+            fromDocument: true,
+            fromSection: true,
+          },
+        },
       },
     });
 
@@ -181,6 +218,26 @@ export class BlogService {
             meta: true,
           },
         },
+        toReferences: {
+          include: {
+            toBlog: true,
+            toDocument: true,
+            toSection: true,
+            fromBlog: true,
+            fromDocument: true,
+            fromSection: true,
+          },
+        },
+        fromReferences: {
+          include: {
+            fromBlog: true,
+            fromDocument: true,
+            fromSection: true,
+            toBlog: true,
+            toDocument: true,
+            toSection: true,
+          },
+        },
       },
     });
 
@@ -215,7 +272,7 @@ export class BlogService {
         // Delete existing meta relationships
         await this.prisma.entityMeta.deleteMany({
           where: {
-            entityId: id,
+            blogId: id,
             entityType: EntityType.blog,
           },
         });
@@ -224,7 +281,7 @@ export class BlogService {
         await this.prisma.entityMeta.createMany({
           data: metaIds.map((metaId) => ({
             metaId,
-            entityId: id,
+            blogId: id,
             entityType: EntityType.blog,
             content: '',
           })),

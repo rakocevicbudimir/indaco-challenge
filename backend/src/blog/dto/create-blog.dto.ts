@@ -8,7 +8,8 @@ import {
   IsArray,
   IsNumber,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+import { CreateNestedReferenceDto } from '../../document/dto/create-nested-reference.dto';
 
 export class CreateBlogDto {
   @ApiProperty({ description: 'Blog title' })
@@ -56,4 +57,13 @@ export class CreateBlogDto {
         : [],
   )
   metaIds?: number[];
+
+  @ApiPropertyOptional({
+    description: 'References this blog points to',
+    type: [CreateNestedReferenceDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @Type(() => CreateNestedReferenceDto)
+  toReferences?: CreateNestedReferenceDto[];
 }
