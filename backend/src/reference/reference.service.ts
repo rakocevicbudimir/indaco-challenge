@@ -121,29 +121,41 @@ export class ReferenceService {
       data: {
         content: dto.content,
         fromEntityType: dto.fromEntityType,
-        fromEntityId: dto.fromEntityId,
         toEntityType: dto.toEntityType,
-        toEntityId: dto.toEntityId,
+        ...(dto.fromEntityType === ReferenceEntityType.blog
+          ? { fromBlog: { connect: { id: dto.fromEntityId } } }
+          : dto.fromEntityType === ReferenceEntityType.document
+            ? { fromDocument: { connect: { id: dto.fromEntityId } } }
+            : { fromSection: { connect: { id: dto.fromEntityId } } }),
+        ...(dto.toEntityType === ReferenceEntityType.blog
+          ? { toBlog: { connect: { id: dto.toEntityId } } }
+          : dto.toEntityType === ReferenceEntityType.document
+            ? { toDocument: { connect: { id: dto.toEntityId } } }
+            : { toSection: { connect: { id: dto.toEntityId } } }),
       },
     });
   }
 
   async createMany(userId: number, dto: CreateReferencesDto) {
+    type CreatedReference = {
+      id: number;
+      content: string | null;
+      fromEntityType: ReferenceEntityType;
+      toEntityType: ReferenceEntityType;
+      fromBlogId: number | null;
+      fromDocumentId: number | null;
+      fromSectionId: number | null;
+      toBlogId: number | null;
+      toDocumentId: number | null;
+      toSectionId: number | null;
+      createdAt: Date;
+      updatedAt: Date;
+      deletedAt: Date | null;
+    };
+
     type ResultType = {
       error: boolean;
-      data:
-        | CreateReferenceDto
-        | {
-            id: number;
-            content: string | null;
-            fromEntityType: ReferenceEntityType;
-            fromEntityId: number;
-            toEntityType: ReferenceEntityType;
-            toEntityId: number;
-            createdAt: Date;
-            updatedAt: Date;
-            deletedAt: Date | null;
-          };
+      data: CreateReferenceDto | CreatedReference;
       message?: string;
     };
 
@@ -188,9 +200,25 @@ export class ReferenceService {
           data: {
             content: referenceDto.content,
             fromEntityType: referenceDto.fromEntityType,
-            fromEntityId: referenceDto.fromEntityId,
             toEntityType: referenceDto.toEntityType,
-            toEntityId: referenceDto.toEntityId,
+            ...(referenceDto.fromEntityType === ReferenceEntityType.blog
+              ? { fromBlog: { connect: { id: referenceDto.fromEntityId } } }
+              : referenceDto.fromEntityType === ReferenceEntityType.document
+                ? {
+                    fromDocument: {
+                      connect: { id: referenceDto.fromEntityId },
+                    },
+                  }
+                : {
+                    fromSection: { connect: { id: referenceDto.fromEntityId } },
+                  }),
+            ...(referenceDto.toEntityType === ReferenceEntityType.blog
+              ? { toBlog: { connect: { id: referenceDto.toEntityId } } }
+              : referenceDto.toEntityType === ReferenceEntityType.document
+                ? {
+                    toDocument: { connect: { id: referenceDto.toEntityId } },
+                  }
+                : { toSection: { connect: { id: referenceDto.toEntityId } } }),
           },
         });
 
@@ -238,13 +266,25 @@ export class ReferenceService {
       baseWhere.fromEntityType = query.fromEntityType;
     }
     if (query.fromEntityId) {
-      baseWhere.fromEntityId = query.fromEntityId;
+      if (query.fromEntityType === ReferenceEntityType.blog) {
+        baseWhere.fromBlogId = query.fromEntityId;
+      } else if (query.fromEntityType === ReferenceEntityType.document) {
+        baseWhere.fromDocumentId = query.fromEntityId;
+      } else if (query.fromEntityType === ReferenceEntityType.section) {
+        baseWhere.fromSectionId = query.fromEntityId;
+      }
     }
     if (query.toEntityType) {
       baseWhere.toEntityType = query.toEntityType;
     }
     if (query.toEntityId) {
-      baseWhere.toEntityId = query.toEntityId;
+      if (query.toEntityType === ReferenceEntityType.blog) {
+        baseWhere.toBlogId = query.toEntityId;
+      } else if (query.toEntityType === ReferenceEntityType.document) {
+        baseWhere.toDocumentId = query.toEntityId;
+      } else if (query.toEntityType === ReferenceEntityType.section) {
+        baseWhere.toSectionId = query.toEntityId;
+      }
     }
 
     // Get paginated results
@@ -260,13 +300,22 @@ export class ReferenceService {
     // Filter out references that the user doesn't have access to
     const accessibleItems = await Promise.all(
       items.map(async (item) => {
+        const fromId =
+          item.fromEntityType === ReferenceEntityType.blog
+            ? item.fromBlogId!
+            : item.fromEntityType === ReferenceEntityType.document
+            ? item.fromDocumentId!
+            : item.fromSectionId!;
+        const toId =
+          item.toEntityType === ReferenceEntityType.blog
+            ? item.toBlogId!
+            : item.toEntityType === ReferenceEntityType.document
+            ? item.toDocumentId!
+            : item.toSectionId!;
+
         const [fromAccess, toAccess] = await Promise.all([
-          this.checkEntityAccess(
-            item.fromEntityType,
-            item.fromEntityId,
-            userId,
-          ),
-          this.checkEntityAccess(item.toEntityType, item.toEntityId, userId),
+          this.checkEntityAccess(item.fromEntityType, fromId, userId),
+          this.checkEntityAccess(item.toEntityType, toId, userId),
         ]);
 
         return fromAccess.hasAccess && toAccess.hasAccess ? item : null;
@@ -305,17 +354,26 @@ export class ReferenceService {
     }
 
     // Check if user has access to both entities
+    const fromId: number =
+      reference.fromEntityType === ReferenceEntityType.blog
+        ? (reference.fromBlogId as number)
+        : reference.fromEntityType === ReferenceEntityType.document
+        ? (reference.fromDocumentId as number)
+        : (reference.fromSectionId as number);
+    const toId: number =
+      reference.toEntityType === ReferenceEntityType.blog
+        ? (reference.toBlogId as number)
+        : reference.toEntityType === ReferenceEntityType.document
+        ? (reference.toDocumentId as number)
+        : (reference.toSectionId as number);
+
     const [fromAccess, toAccess] = await Promise.all([
       this.checkEntityAccess(
         reference.fromEntityType,
-        reference.fromEntityId,
+        fromId as number,
         userId,
       ),
-      this.checkEntityAccess(
-        reference.toEntityType,
-        reference.toEntityId,
-        userId,
-      ),
+      this.checkEntityAccess(reference.toEntityType, toId as number, userId),
     ]);
 
     if (!fromAccess.hasAccess || !toAccess.hasAccess) {
@@ -329,9 +387,15 @@ export class ReferenceService {
     const reference = await this.findOne(id, userId);
 
     // Check if user owns the source entity
+    const fromId: number =
+      reference.fromEntityType === ReferenceEntityType.blog
+        ? (reference.fromBlogId as number)
+        : reference.fromEntityType === ReferenceEntityType.document
+        ? (reference.fromDocumentId as number)
+        : (reference.fromSectionId as number);
     const fromAccess = await this.checkEntityAccess(
       reference.fromEntityType,
-      reference.fromEntityId,
+      fromId as number,
       userId,
     );
 
@@ -353,9 +417,15 @@ export class ReferenceService {
     const reference = await this.findOne(id, userId);
 
     // Check if user owns the source entity
+    const fromId: number =
+      reference.fromEntityType === ReferenceEntityType.blog
+        ? (reference.fromBlogId as number)
+        : reference.fromEntityType === ReferenceEntityType.document
+        ? (reference.fromDocumentId as number)
+        : (reference.fromSectionId as number);
     const fromAccess = await this.checkEntityAccess(
       reference.fromEntityType,
-      reference.fromEntityId,
+      fromId as number,
       userId,
     );
 
