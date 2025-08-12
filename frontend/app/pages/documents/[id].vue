@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen">
     <DocumentDetail :document-id="documentId" />
   </div>
 </template>
