@@ -1,11 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { NoteEntityType } from '@prisma/client';
-import {
-  IsString,
-  IsEnum,
-  IsNumber,
-  IsNotEmpty,
-} from 'class-validator';
+import { IsString, IsEnum, IsNumber, IsNotEmpty } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateNoteDto {
