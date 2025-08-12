@@ -1,369 +1,398 @@
 <template>
-  <UCard>
-    <template #header>
-      <div class="flex justify-between items-center">
-        <h2 class="text-xl font-semibold">Manage Legal Documents</h2>
+  <div>
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-semibold">Documents</h1>
+          <p class="mt-1 text-gray-600 dark:text-gray-400">
+            Manage your legal documents
+          </p>
+        </div>
         <UButton
-          color="primary"
           icon="i-heroicons-plus"
-          @click="showCreateModal = true"
+          to="/admin/documents/create"
+          color="primary"
         >
-          Create New Document
-        </UButton>
-      </div>
-    </template>
-
-    <div class="space-y-4">
-      <UInput
-        v-model="searchQuery"
-        icon="i-heroicons-magnifying-glass"
-        placeholder="Search documents..."
-        size="lg"
-      />
-      
-      <div class="flex flex-wrap gap-2">
-        <UButton
-          v-for="tag in tags"
-          :key="tag.id"
-          :variant="selectedTags.includes(tag.id) ? 'solid' : 'outline'"
-          :color="selectedTags.includes(tag.id) ? 'primary' : 'gray'"
-          size="sm"
-          @click="toggleTag(tag.id)"
-        >
-          {{ tag.name }}
+          New Document
         </UButton>
       </div>
     </div>
 
-    <UTable
-      :rows="filteredDocuments"
-      :columns="[
-        {
-          key: 'title',
-          label: 'Title',
-          id: 'title'
-        },
-        {
-          key: 'author',
-          label: 'Author',
-          id: 'author'
-        },
-        {
-          key: 'status',
-          label: 'Status',
-          id: 'status'
-        },
-        {
-          key: 'createdAt',
-          label: 'Created',
-          id: 'createdAt'
-        },
-        {
-          key: 'actions',
-          label: 'Actions',
-          id: 'actions'
-        }
-      ]"
-    >
-      <template #author-data="{ row }">
-        {{ getAuthorName(row.author) }}
-      </template>
+    <!-- Filters -->
+    <UCard class="mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <UInput
+          v-model="filters.search"
+          icon="i-heroicons-magnifying-glass"
+          placeholder="Search documents..."
+        />
+        <USelect
+          v-model="filters.status"
+          :options="['ALL', 'DRAFT', 'PUBLISHED']"
+          placeholder="Filter by status"
+          option-attribute="label"
+        />
+        <USelectMenu
+          v-model="filters.tagId"
+          :options="tagOptions"
+          placeholder="Filter by tag"
+        />
+      </div>
+    </UCard>
 
-      <template #status-data="{ row }">
-        <UBadge
-          :color="row.isPublic ? 'green' : 'yellow'"
-          :variant="row.isPublic ? 'solid' : 'subtle'"
-        >
-          {{ row.isPublic ? 'Public' : 'Private' }}
-        </UBadge>
-      </template>
-
-      <template #createdAt-data="{ row }">
-        {{ formatDate(row.createdAt) }}
-      </template>
-
-      <template #actions-data="{ row }">
-        <div class="flex gap-2">
-          <UButton
-            color="primary"
-            variant="ghost"
-            icon="i-heroicons-pencil-square"
-            @click="editDocument(row)"
-          >
-            Edit
-          </UButton>
-          <UButton
-            color="red"
-            variant="ghost"
-            icon="i-heroicons-trash"
-            @click="confirmDelete(row)"
-          >
-            Delete
-          </UButton>
-        </div>
-      </template>
-    </UTable>
-
-    <!-- Create/Edit Modal -->
-    <UModal
-      v-model="showModal"
-      :ui="{ width: 'max-w-3xl' }"
-    >
-      <UCard>
-        <template #header>
-          <h3 class="text-xl font-semibold">
-            {{ editingDocument ? 'Edit Document' : 'Create New Document' }}
-          </h3>
-        </template>
-
-        <div class="space-y-6">
-          <UFormGroup label="Title">
-            <UInput
-              v-model="documentForm.title"
-              placeholder="Enter document title"
-              required
+    <!-- Documents Table -->
+    <ClientOnly>
+    <UCard>
+      <UTable
+        :data="tableRows"
+        :columns="columns"
+        :loading="loading"
+        :empty-state="{
+          icon: 'i-heroicons-document',
+          label: 'No documents found',
+          description: loading ? 'Loading documents...' : 'Try adjusting your filters or create a new document'
+        }"
+      >
+        <template #title-cell="{ row }">
+          <div class="flex items-center gap-2">
+            <UIcon
+              :name="asDoc(row).isPublic ? 'i-heroicons-globe-alt' : 'i-heroicons-lock-closed'"
+              class="text-gray-400"
             />
-          </UFormGroup>
-
-          <UFormGroup label="Content">
-            <TiptapEditor
-              v-model="documentForm.content"
-              placeholder="Enter document content..."
-            />
-          </UFormGroup>
-
-          <UFormGroup label="Excerpt">
-            <UTextarea
-              v-model="documentForm.excerpt"
-              placeholder="Enter document excerpt"
-              rows="3"
-            />
-          </UFormGroup>
-
-          <UFormGroup label="Tags">
-            <div class="flex flex-wrap gap-2">
-              <UButton
-                v-for="tag in tags"
-                :key="tag.id"
-                :variant="documentForm.tags.includes(tag.id) ? 'solid' : 'outline'"
-                :color="documentForm.tags.includes(tag.id) ? 'primary' : 'gray'"
-                size="sm"
-                @click="toggleDocumentTag(tag.id)"
-              >
-                {{ tag.name }}
-              </UButton>
-            </div>
-          </UFormGroup>
-
-          <UFormGroup>
-            <UCheckbox
-              v-model="documentForm.isPublic"
-              label="Make document public"
-            />
-          </UFormGroup>
-        </div>
-
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="gray"
-              variant="soft"
-              @click="closeModal"
+            <NuxtLink
+              :to="`/documents/${asDoc(row).id}`"
+              class="font-medium text-primary hover:underline"
             >
-              Cancel
-            </UButton>
-            <UButton
-              color="primary"
-              @click="saveDocument"
-            >
-              {{ editingDocument ? 'Save Changes' : 'Create Document' }}
-            </UButton>
+              {{ asDoc(row).title }}
+            </NuxtLink>
           </div>
         </template>
-      </UCard>
-    </UModal>
+
+        <template #status-cell="{ row }">
+          <UBadge
+            :color="getStatusColor(asDoc(row).status)"
+            :variant="asDoc(row).status === 'PUBLISHED' ? 'solid' : 'soft'"
+          >
+            {{ asDoc(row).status }}
+          </UBadge>
+        </template>
+
+        <template #creator-cell="{ row }">
+          <div class="flex items-center gap-2">
+            <UAvatar
+              :alt="asDoc(row).creator?.firstName + ' ' + asDoc(row).creator?.lastName"
+              :text="getInitials(asDoc(row).creator)"
+              size="sm"
+            />
+            <span>{{ asDoc(row).creator?.firstName }} {{ asDoc(row).creator?.lastName }}</span>
+          </div>
+        </template>
+
+        <template #sections-cell="{ row }">
+          <UBadge
+            :label="asDoc(row).sections?.length.toString()"
+            color="neutral"
+            variant="subtle"
+          />
+        </template>
+
+        <template #tags-cell="{ row }">
+          <div class="flex flex-wrap gap-1">
+            <UBadge
+              v-for="meta in asDoc(row).entityMeta"
+              :key="meta.id"
+              :label="meta.meta.name"
+              color="primary"
+              variant="soft"
+              size="xs"
+            />
+          </div>
+        </template>
+
+        <template #date-cell="{ row }">
+          <span class="text-gray-600 dark:text-gray-400">
+            {{ formatDate(asDoc(row).createdAt) }}
+          </span>
+        </template>
+
+        <template #actions-cell="{ row }">
+          <UDropdownMenu
+            :items="getActionItems(asDoc(row))"
+            :ui="{
+              item: 'gap-x-2'
+            }"
+          >
+            <UButton
+              color="neutral"
+              variant="ghost"
+              icon="i-heroicons-ellipsis-vertical"
+            />
+          </UDropdownMenu>
+        </template>
+      </UTable>
+
+      <!-- Pagination -->
+      <template #footer>
+        <div class="flex items-center justify-between gap-2 mt-4">
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Showing {{ documents.items?.length || 0 }} of {{ documents.meta.total }} documents
+          </p>
+          <UPagination
+            v-model="currentPage"
+            :total="documents.meta.total"
+            :page-size="documents.meta.limit"
+          />
+        </div>
+      </template>
+    </UCard>
+    </ClientOnly>
 
     <!-- Delete Confirmation Modal -->
-    <UModal v-model="showDeleteModal">
-      <UCard>
-        <template #header>
-          <h3 class="text-xl font-semibold">Delete Document</h3>
-        </template>
-
-        <p class="text-gray-600">
-          Are you sure you want to delete "{{ documentToDelete?.title }}"? This action cannot be undone.
-        </p>
-
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="gray"
-              variant="soft"
-              @click="showDeleteModal = false"
-            >
-              Cancel
-            </UButton>
-            <UButton
-              color="red"
-              @click="deleteDocument"
-            >
-              Delete
-            </UButton>
-          </div>
-        </template>
-      </UCard>
+    <UModal v-model:open="showDeleteModal">
+      <template #content>
+        <UCard>
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon name="i-heroicons-exclamation-triangle" class="text-red-500" />
+              <h3 class="text-lg font-semibold">Delete Document</h3>
+            </div>
+          </template>
+  
+          <p>Are you sure you want to delete "{{ documentToDelete?.title }}"? This action cannot be undone.</p>
+  
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton
+                color="neutral"
+                variant="soft"
+                @click="showDeleteModal = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                color="error"
+                @click="deleteDocument"
+              >
+                Delete
+              </UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
     </UModal>
-  </UCard>
+  </div>
+  
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useDocumentStore } from '~/stores/document'
-import { useAuthStore } from '~/stores/auth'
-import type { LegalDocument } from '@/types/rules'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useDocumentStore } from '@/stores/document'
 
-const documentStore = useDocumentStore()
-const authStore = useAuthStore()
+// Types aligned with backend responses
+interface Creator {
+  id: number
+  email: string
+  firstName: string
+  lastName: string
+}
 
-const { documents, tags } = storeToRefs(documentStore)
-const { user } = storeToRefs(authStore)
+interface Section {
+  id: number
+  title: string
+  status: string
+}
 
-const searchQuery = ref('')
-const selectedTags = ref<string[]>([])
-const showCreateModal = ref(false)
+interface Meta {
+  id: number
+  name: string
+  description: string | null
+  slug: string
+  type: string
+}
+
+interface EntityMeta {
+  id: number
+  meta: Meta
+}
+
+interface DocumentItem {
+  id: number
+  title: string
+  summary: string
+  content: string
+  status: string
+  isPublic: boolean
+  creatorId: number
+  createdAt: string
+  updatedAt: string
+  creator: Creator
+  sections: Section[]
+  entityMeta: EntityMeta[]
+}
+
+interface PaginationMeta {
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+}
+
+interface DocumentsResponse {
+  items: DocumentItem[]
+  meta: PaginationMeta
+}
+
+const loading = ref(false)
+const currentPage = ref(1)
 const showDeleteModal = ref(false)
-const editingDocument = ref<LegalDocument | null>(null)
-const documentToDelete = ref<LegalDocument | null>(null)
+const documentToDelete = ref<DocumentItem | null>(null)
+const documentStore = useDocumentStore()
 
-const showModal = computed({
-  get: () => showCreateModal.value || !!editingDocument.value,
-  set: (value: boolean) => {
-    if (!value) {
-      showCreateModal.value = false
-      editingDocument.value = null
-    }
-  }
+const filters = ref({
+  search: undefined,
+  status: undefined,
+  tagId: null as number | null,
 })
 
-const documentForm = ref({
-  title: '',
-  content: '',
-  excerpt: '',
-  tags: [] as string[],
-  isPublic: false,
+const documents = ref<DocumentsResponse>({
+  items: [],
+  meta: {
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  },
 })
 
-const filteredDocuments = computed(() => {
-  let filtered = documents.value
-
-  // Filter by search query
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(doc =>
-      doc.title.toLowerCase().includes(query) ||
-      doc.excerpt?.toLowerCase().includes(query)
-    )
-  }
-
-  // Filter by selected tags
-  if (selectedTags.value.length > 0) {
-    filtered = filtered.filter(doc =>
-      selectedTags.value.some(tagId => doc.tags.includes(tagId))
-    )
-  }
-
-  return filtered
+const availableTags = computed(() => {
+  const tags = new Map<number, Meta>()
+  documents.value.items?.forEach((doc) => {
+    doc.entityMeta.forEach((em) => {
+      tags.set(em.meta.id, em.meta)
+    })
+  })
+  return Array.from(tags.values())
 })
 
-const toggleTag = (tagId: string) => {
-  const index = selectedTags.value.indexOf(tagId)
-  if (index === -1) {
-    selectedTags.value.push(tagId)
-  } else {
-    selectedTags.value.splice(index, 1)
+const tagOptions = computed(() => availableTags.value.map(t => ({ label: t.name, value: t.id })))
+
+const columns = [
+  { accessorKey: 'title', header: 'Title' },
+  { accessorKey: 'status', header: 'Status' },
+  { accessorKey: 'creator', header: 'Creator' },
+  { accessorKey: 'sections', header: 'Sections' },
+  { accessorKey: 'tags', header: 'Tags' },
+  { accessorKey: 'date', header: 'Created' },
+  { accessorKey: 'actions', header: '' },
+]
+
+const tableRows = computed(() => documents.value.items ?? [])
+
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'PUBLISHED':
+      return 'success'
+    case 'DRAFT':
+      return 'warning'
+    default:
+      return 'neutral'
   }
 }
 
-const toggleDocumentTag = (tagId: string) => {
-  const index = documentForm.value.tags.indexOf(tagId)
-  if (index === -1) {
-    documentForm.value.tags.push(tagId)
-  } else {
-    documentForm.value.tags.splice(index, 1)
-  }
+function formatDate(dateString: string) {
+  return new Date(dateString).toLocaleDateString()
 }
 
-const getAuthorName = (authorId: string) => {
-  if (authorId === user.value?.id) {
-    return user.value.name
-  }
-  return 'Unknown Author' // In a real app, you'd fetch the author name
+function getActionItems(doc: DocumentItem) {
+  return [
+    [
+      {
+        label: 'View',
+        icon: 'i-heroicons-eye',
+        to: `/documents/${doc.id}`,
+      },
+      {
+        label: 'Edit',
+        icon: 'i-heroicons-pencil-square',
+        to: `/admin/documents/${doc.id}/edit`,
+      },
+    ],
+    [
+      doc.status !== 'PUBLISHED' && {
+        label: 'Publish',
+        icon: 'i-heroicons-arrow-up-on-square',
+        click: () => publishDocument(doc.id),
+      },
+    ].filter(Boolean),
+    [
+      {
+        label: 'Delete',
+        icon: 'i-heroicons-trash',
+        click: () => confirmDelete(doc),
+      },
+    ],
+  ]
 }
 
-const formatDate = (date: Date) => {
-  return new Date(date).toLocaleDateString()
-}
-
-const editDocument = (document: LegalDocument) => {
-  editingDocument.value = document
-  documentForm.value = {
-    title: document.title,
-    content: document.content,
-    excerpt: document.excerpt || '',
-    tags: [...document.tags],
-    isPublic: document.isPublic,
-  }
-}
-
-const confirmDelete = (document: LegalDocument) => {
-  documentToDelete.value = document
+function confirmDelete(doc: DocumentItem) {
+  documentToDelete.value = doc
   showDeleteModal.value = true
 }
 
-const closeModal = () => {
-  showCreateModal.value = false
-  editingDocument.value = null
-  documentForm.value = {
-    title: '',
-    content: '',
-    excerpt: '',
-    tags: [],
-    isPublic: false,
-  }
-}
-
-const saveDocument = async () => {
-  try {
-    if (editingDocument.value) {
-      await documentStore.updateDocument(editingDocument.value.id, {
-        ...documentForm.value,
-        author: user.value!.id,
-      })
-    } else {
-      await documentStore.createDocument({
-        ...documentForm.value,
-        author: user.value!.id,
-      })
-    }
-    closeModal()
-  } catch (error) {
-    console.error('Failed to save document:', error)
-    // Handle error (show notification, etc.)
-  }
-}
-
-const deleteDocument = async () => {
+async function deleteDocument() {
   if (!documentToDelete.value) return
-
   try {
-    await documentStore.deleteDocument(documentToDelete.value.id)
+    await documentStore.deleteDocument(documentToDelete.value.id.toString())
     showDeleteModal.value = false
     documentToDelete.value = null
+    await documentStore.fetchDocuments(currentPage.value, documents.value.meta.limit, filters.value.search, filters.value.status, filters.value.tagId)
   } catch (error) {
     console.error('Failed to delete document:', error)
-    // Handle error (show notification, etc.)
   }
 }
-</script>
 
+async function publishDocument(documentId: number) {
+  try {
+    documentStore.updateDocument(documentId.toString(), { status: 'PUBLISHED' })
+    await documentStore.fetchDocuments(currentPage.value, documents.value.meta.limit, filters.value.search, filters.value.status, filters.value.tagId)
+  } catch (error) {
+    console.error('Failed to publish document:', error)
+  }
+}
+
+async function fetchDocuments(page: number, limit: number, search: string | undefined, status: string | undefined, tagId: number | null) {
+  loading.value = true
+  try {
+    const res = await documentStore.fetchDocuments(page, limit, search, status, tagId)
+    documents.value = res as unknown as DocumentsResponse
+  } catch (e) {
+    console.error('Failed to fetch documents:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+watch([currentPage, filters], () => {
+  fetchDocuments(currentPage.value, documents.value.meta.limit, filters.value.search, filters.value.status, filters.value.tagId)
+}, { deep: true })
+
+onMounted(() => {
+  fetchDocuments(currentPage.value, documents.value.meta.limit, filters.value.search, filters.value.status, filters.value.tagId)
+})
+
+function asDoc(row: unknown): DocumentItem {
+  const possible = row as { original?: DocumentItem }
+  return possible.original as DocumentItem
+}
+
+function getInitials(creator: Creator): string {
+  const first = creator?.firstName?.[0] || ''
+  const last = creator?.lastName?.[0] || ''
+  return `${first}${last}` || 'U'
+}
+</script>

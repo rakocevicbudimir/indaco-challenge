@@ -114,7 +114,7 @@ watch(() => props.modelValue, (newContent) => {
 })
 </script>
 
-<style>
+<style scoped>
 .tiptap-editor {
   @apply border overflow-hidden;
 }
