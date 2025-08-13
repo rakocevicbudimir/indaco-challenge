@@ -1,4 +1,11 @@
-import { PrismaClient, Role, MetaType, Status, EntityType, ReferenceEntityType } from '@prisma/client';
+import {
+  PrismaClient,
+  Role,
+  MetaType,
+  Status,
+  EntityType,
+  ReferenceEntityType,
+} from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -18,7 +25,7 @@ function pick<T>(arr: T[], count: number): T[] {
   const out: T[] = [];
   for (let i = 0; i < count && copy.length > 0; i += 1) {
     const idx = Math.floor(Math.random() * copy.length);
-    out.push(copy.splice(idx, 1)[0]!);
+    out.push(copy.splice(idx, 1)[0]);
   }
   return out;
 }
@@ -81,7 +88,7 @@ async function main() {
   ]);
 
   // Metas (tags and categories)
-  const tags = await prisma.meta.createMany({
+  await prisma.meta.createMany({
     data: [
       { name: 'Contract', type: MetaType.tag, slug: 'contract' },
       { name: 'NDA', type: MetaType.tag, slug: 'nda' },
@@ -94,7 +101,7 @@ async function main() {
     skipDuplicates: true,
   });
 
-  const categories = await prisma.meta.createMany({
+  await prisma.meta.createMany({
     data: [
       { name: 'Corporate', type: MetaType.category, slug: 'corporate' },
       { name: 'Employment', type: MetaType.category, slug: 'employment' },
@@ -118,7 +125,11 @@ async function main() {
       authorId: alice.id,
       entityMeta: {
         createMany: {
-          data: pick(allMetas, 3).map((m) => ({ metaId: m.id, entityType: EntityType.blog, content: '' })),
+          data: pick(allMetas, 3).map((m) => ({
+            metaId: m.id,
+            entityType: EntityType.blog,
+            content: '',
+          })),
         },
       },
     },
@@ -134,7 +145,11 @@ async function main() {
       authorId: alice.id,
       entityMeta: {
         createMany: {
-          data: pick(allMetas, 2).map((m) => ({ metaId: m.id, entityType: EntityType.blog, content: '' })),
+          data: pick(allMetas, 2).map((m) => ({
+            metaId: m.id,
+            entityType: EntityType.blog,
+            content: '',
+          })),
         },
       },
     },
@@ -150,7 +165,11 @@ async function main() {
       authorId: bob.id,
       entityMeta: {
         createMany: {
-          data: pick(allMetas, 2).map((m) => ({ metaId: m.id, entityType: EntityType.blog, content: '' })),
+          data: pick(allMetas, 2).map((m) => ({
+            metaId: m.id,
+            entityType: EntityType.blog,
+            content: '',
+          })),
         },
       },
     },
@@ -166,7 +185,11 @@ async function main() {
       authorId: charlie.id,
       entityMeta: {
         createMany: {
-          data: pick(allMetas, 2).map((m) => ({ metaId: m.id, entityType: EntityType.blog, content: '' })),
+          data: pick(allMetas, 2).map((m) => ({
+            metaId: m.id,
+            entityType: EntityType.blog,
+            content: '',
+          })),
         },
       },
     },
@@ -182,7 +205,11 @@ async function main() {
       authorId: diana.id,
       entityMeta: {
         createMany: {
-          data: pick(allMetas, 3).map((m) => ({ metaId: m.id, entityType: EntityType.blog, content: '' })),
+          data: pick(allMetas, 3).map((m) => ({
+            metaId: m.id,
+            entityType: EntityType.blog,
+            content: '',
+          })),
         },
       },
     },
@@ -198,7 +225,11 @@ async function main() {
       authorId: diana.id,
       entityMeta: {
         createMany: {
-          data: pick(allMetas, 2).map((m) => ({ metaId: m.id, entityType: EntityType.blog, content: '' })),
+          data: pick(allMetas, 2).map((m) => ({
+            metaId: m.id,
+            entityType: EntityType.blog,
+            content: '',
+          })),
         },
       },
     },
@@ -214,7 +245,10 @@ async function main() {
       isPublic: true,
       creatorId: admin.id,
       entityMeta: {
-        create: pick(allMetas, 2).map((m) => ({ metaId: m.id, entityType: EntityType.document })),
+        create: pick(allMetas, 2).map((m) => ({
+          metaId: m.id,
+          entityType: EntityType.document,
+        })),
       },
     },
   });
@@ -228,7 +262,10 @@ async function main() {
       isPublic: false,
       creatorId: admin.id,
       entityMeta: {
-        create: pick(allMetas, 3).map((m) => ({ metaId: m.id, entityType: EntityType.document })),
+        create: pick(allMetas, 3).map((m) => ({
+          metaId: m.id,
+          entityType: EntityType.document,
+        })),
       },
     },
   });
@@ -242,7 +279,10 @@ async function main() {
       isPublic: true,
       creatorId: alice.id,
       entityMeta: {
-        create: pick(allMetas, 2).map((m) => ({ metaId: m.id, entityType: EntityType.document })),
+        create: pick(allMetas, 2).map((m) => ({
+          metaId: m.id,
+          entityType: EntityType.document,
+        })),
       },
     },
   });
@@ -256,7 +296,10 @@ async function main() {
       isPublic: true,
       creatorId: bob.id,
       entityMeta: {
-        create: pick(allMetas, 2).map((m) => ({ metaId: m.id, entityType: EntityType.document })),
+        create: pick(allMetas, 2).map((m) => ({
+          metaId: m.id,
+          entityType: EntityType.document,
+        })),
       },
     },
   });
@@ -270,7 +313,10 @@ async function main() {
       isPublic: true,
       creatorId: diana.id,
       entityMeta: {
-        create: pick(allMetas, 3).map((m) => ({ metaId: m.id, entityType: EntityType.document })),
+        create: pick(allMetas, 3).map((m) => ({
+          metaId: m.id,
+          entityType: EntityType.document,
+        })),
       },
     },
   });
@@ -285,7 +331,11 @@ async function main() {
       isPublic: true,
       entityMeta: {
         createMany: {
-          data: pick(allMetas, 1).map((m) => ({ metaId: m.id, entityType: EntityType.section, content: '' })),
+          data: pick(allMetas, 1).map((m) => ({
+            metaId: m.id,
+            entityType: EntityType.section,
+            content: '',
+          })),
         },
       },
     },
@@ -300,7 +350,11 @@ async function main() {
       isPublic: true,
       entityMeta: {
         createMany: {
-          data: pick(allMetas, 1).map((m) => ({ metaId: m.id, entityType: EntityType.section, content: '' })),
+          data: pick(allMetas, 1).map((m) => ({
+            metaId: m.id,
+            entityType: EntityType.section,
+            content: '',
+          })),
         },
       },
     },
@@ -316,7 +370,11 @@ async function main() {
       isPublic: true,
       entityMeta: {
         createMany: {
-          data: pick(allMetas, 1).map((m) => ({ metaId: m.id, entityType: EntityType.section, content: '' })),
+          data: pick(allMetas, 1).map((m) => ({
+            metaId: m.id,
+            entityType: EntityType.section,
+            content: '',
+          })),
         },
       },
     },
@@ -387,7 +445,8 @@ async function main() {
     data: {
       documentId: doc5.id,
       title: 'Data Collection',
-      content: 'We collect data you provide and data collected automatically...',
+      content:
+        'We collect data you provide and data collected automatically...',
       status: Status.PUBLISHED,
       isPublic: true,
     },
@@ -512,5 +571,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
-
