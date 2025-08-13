@@ -62,7 +62,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import MainNavbar from '~/app/components/navigation/MainNavbar.vue'
+import MainNavbar from '@/components/navigation/MainNavbar.vue'
 
 const currentYear = computed(() => new Date().getFullYear())
 </script>
