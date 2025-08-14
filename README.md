@@ -2,13 +2,32 @@
 
 A full‑stack prototype for managing legal documents, sections, references, notes, and blog articles. Backend is NestJS + Prisma + PostgreSQL; frontend is Nuxt 4 + Pinia; Docker is used for the database.
 
+### Run full docker environment
+```bash
+cp .env.example .env
+docker compose up -d # you can add the `--build` flag to build newly if already built
+
+# run seed
+docker exec legal_backend node dist/prisma/seed
+```
+
+> The seeded users are
+```bash
+admin@example.com
+alice@example.com
+bob@example.com
+charlie@example.com
+diana@example.com
+```
+The password for all the users is: `password123`
+
 ### Quick start
 
 1) Start PostgreSQL via Docker (from the repo root):
 
 ```bash
 cp .env.example .env  # if you keep one; otherwise create .env as below
-docker compose up -d
+docker compose up -d db
 ```
 
 Example `.env` at repo root for Docker Compose:
@@ -89,6 +108,47 @@ Frontend calls the backend through the Nuxt proxy at `/api1/**`, which forwards 
 - **Seeding**: `npm run prisma:seed` populates initial data from `backend/prisma/seed.ts`.
 - **Rich text**: Tiptap editors in `frontend/app/components/TiptapEditor.vue` and `TiptapNovelEditor.vue`.
 - **Roles**: Basic role handling exists; enhance as needed for admin flows.
+
+### Rendering modes & SEO (Nuxt 4)
+
+This app uses Nuxt 4’s universal rendering by default with selective hybrid rendering to balance SEO and performance. See Nuxt’s official guide on rendering for deeper context: [Nuxt 4 Rendering Modes](https://nuxt.com/docs/4.x/guide/concepts/rendering).
+
+- **Universal (SSR)**: Initial HTML is rendered on the server, then hydrated on the client. This provides fast first contentful paint and excellent SEO because crawlers can index full HTML.
+- **Client‑Side Rendering (CSR)**: The browser renders everything. Faster to build and cheaper to host, but initial content is not in HTML, which is slower and less SEO‑friendly.
+- **Hybrid Rendering**: Mix strategies per route using `routeRules` for the best of both worlds.
+
+Current configuration (in `frontend/nuxt.config.ts`):
+
+```ts
+export default defineNuxtConfig({
+  app: { head: { titleTemplate: '%s - Legal Intelligence', /* meta defaults */ } },
+  nitro: {
+    routeRules: {
+      '/': { prerender: true },
+      '/blog': { isr: 3600 },
+      '/blog/**': { isr: true },
+      '/documents': { swr: 3600 },
+      '/documents/**': { swr: 3600 },
+      '/admin/**': { ssr: false, headers: { 'x-robots-tag': 'noindex, nofollow' } },
+      '/api1/**': { proxy: `${process.env.NUXT_PUBLIC_EXTERNAL_API_BASE || 'http://localhost:3001'}/**` },
+    }
+  },
+  runtimeConfig: {
+    public: {
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3001'
+    }
+  }
+})
+```
+
+- **Home `/`**: prerendered at build time for instant load and SEO.
+- **Blog**: ISR caches HTML at the edge; updates revalidate without full redeploy.
+- **Documents**: SWR caches on the server and revalidates in the background.
+- **Admin**: client‑only and marked `noindex, nofollow` for search engines.
+
+Per‑page SEO enhancements use `useHead` to set titles, descriptions, and canonical URLs built from `NUXT_PUBLIC_SITE_URL`.
+
+If you prefer a pure SPA (CSR‑only) for certain deployments, you can set `ssr: false` globally in `nuxt.config.ts` as per Nuxt docs, but SEO will be reduced. Hybrid rendering is generally recommended for content pages. Reference: [Nuxt 4 Rendering Modes](https://nuxt.com/docs/4.x/guide/concepts/rendering).
 
 ### Known trade‑offs / implementation notes
 
