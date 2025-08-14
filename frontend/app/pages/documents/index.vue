@@ -13,4 +13,11 @@
 
 <script setup lang="ts">
 import DocumentList from '@/components/documents/DocumentList.vue'
+
+useHead({
+  title: 'Legal Documents',
+  meta: [
+    { name: 'description', content: 'Explore and filter our collection of legal documents.' }
+  ]
+})
 </script>

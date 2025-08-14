@@ -13,4 +13,11 @@
 
 <script setup lang="ts">
 import BlogList from '@/components/blog/BlogList.vue'
+
+useHead({
+  title: 'Legal Insights Blog',
+  meta: [
+    { name: 'description', content: 'Browse expert legal articles, guides, and analyses.' }
+  ]
+})
 </script>

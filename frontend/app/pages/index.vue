@@ -7,4 +7,10 @@
 </template>
 
 <script setup lang="ts">
+useHead({
+  title: 'Home',
+  meta: [
+    { name: 'description', content: 'Legal Intelligence – manage legal documents, notes, references, and read insights.' }
+  ]
+})
 </script>
