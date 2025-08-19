@@ -31,6 +31,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       JWT_SECRET: ${JWT_SECRET:-dev_local_secret_change_me}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
       DATABASE_URL: postgresql://${POSTGRES_DB_USER:-postgres}:${POSTGRES_DB_PASS:-postgres}@db:5432/${POSTGRES_DB_DATABASE:-legal}?schema=public
     ports:
       - "3000:3000"

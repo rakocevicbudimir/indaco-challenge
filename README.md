@@ -37,6 +37,9 @@ POSTGRES_DB_PORT=5432
 POSTGRES_DB_DATABASE=legal
 POSTGRES_DB_USER=postgres
 POSTGRES_DB_PASS=postgres
+
+JWT_SECRET=secretsecretsecretsecret
+JWT_EXPIRATION=7d
 ```
 
 2) Backend (NestJS):
